@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --fuente-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --fuente-mono: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
+  --ground: #f6f7f5;
+  --surface: #ffffff;
+  --ink: #1b2320;
+  --ink-2: #4a5551;
+  --rule: #dcdfda;
+  --accent: #2a4f6e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #141917;
+    --surface: #1c2220;
+    --ink: #e8ece9;
+    --ink-2: #b0bab5;
+    --rule: #323a36;
+    --accent: #8fc0e2;
+  }
+}
+
+html, body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--fuente-sans);
+}

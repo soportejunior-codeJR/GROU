@@ -1,0 +1,31 @@
+# credenciales — NUNCA a Git
+.env
+.env.*
+!.env.local.example
+
+# --- web ---
+node_modules/
+.next/
+out/
+build/
+next-env.d.ts
+.vercel
+
+# dataset real: microdatos de ~21.400 personas. Se genera en cada build.
+web/data/postulaciones.json
+web/data/*.json
+!web/data/postulaciones.ejemplo.json
+
+# --- etl ---
+# payloads intermedios con PII
+etl/salida/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# varios
+.DS_Store
+*.log
+.idea/
+.vscode/
