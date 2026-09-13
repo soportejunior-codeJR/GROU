@@ -213,30 +213,107 @@ insertadas, actualizadas y omitidas por tabla.
 
 ## 9. T5 — cruce con la cohorte matriculada (`etl/cruzar_canon.py`)
 
-Lee de `panel-datos-rofe` con `PANEL_SUPABASE_*`: `cohorte_2026_ceds` (filtrar `programa=eq.jc`,
+**Reescrito el 2026-09-13.** La versión anterior decía "6 de 6 por nombre → 832/832" y era
+optimista: se midió con un diccionario que se quedaba con la primera coincidencia, así que
+**nunca comprobó unicidad y no podía ver las ambigüedades**. Lo que sigue está medido de verdad.
+
+### Fuente
+
+De `panel-datos-rofe` con `PANEL_SUPABASE_*`: `cohorte_2026_ceds` (filtrar `programa=eq.jc`,
 **en minúscula** — con `'JC'` devuelve 0 filas sin error), `retiros`, `aprobacion_cursos`,
-`participants`. Ojo: **`participants` no tiene columna `cedula`**; el puente es `cohorte_2026_ceds`.
+`participants`. **`participants` no tiene columna `cedula`**; el puente es `cohorte_2026_ceds`.
 
-Algoritmo, en este orden:
+### Regla 0 — el alcance (esto faltaba y es la causa de la ambigüedad extra)
 
-1. Match por `cedula_norm` = solo dígitos **y sin ceros a la izquierda**. Esperado: **826 de 832**.
-   El `lstrip("0")` no es opcional: Ecuador escribe `0930005871` y el canon guarda `930005871`.
-   Si tu script reporta **745**, te falta ese `lstrip`.
-2. Los 6 restantes, por `nombre_norm` exacto (NFKD → ASCII → minúsculas → solo `[a-z ]` → tokens
-   **ordenados alfabéticamente**). Esperado: **6 de 6**, cerrando en **832/832**.
-3. Si un `nombre_norm` matchea más de una postulación, **no decidas**: déjalo sin match y escríbelo
-   en `etl/salida/matches_ambiguos.csv`.
+**El cruce se limita a postulaciones de `convocatoria = '2026'`.** El canon es la cohorte JC 2026;
+una persona solo pudo entrar por la convocatoria 2026.
 
-**Este cruce enriquece, no filtra.** Escribe `resultado_seleccion` para las 24.203, no solo para las
-832: una postulación sin match es una fila con `seleccionado=false`, jamás una fila ausente. Al
-terminar, `count(resultado_seleccion)` debe ser igual a `count(postulaciones)`.
+Esto no es un detalle:
+
+- **63 personas del canon también se postularon en 2025.** Sin acotar el alcance, sus postulaciones
+  de 2025 quedarían marcadas `seleccionado=true` — 63 filas falsas, y el test 7 (exactamente 832)
+  fallaría sin que se entienda por qué.
+- Las ambigüedades por nombre pasan de **2 a 1** al acotar. La segunda era un choque contra una
+  postulación de 2025 de la misma persona.
+
+La fila de 2025 de esas 63 personas queda `seleccionado=false`, que es la verdad histórica: en esa
+convocatoria no fueron seleccionadas.
+
+### Algoritmo
+
+1. **Por `cedula_norm`** (solo dígitos, sin ceros a la izquierda), contra postulaciones 2026.
+   Alcanza **826 de 832**. Si tu script reporta 745, falta el `lstrip("0")`.
+2. **Por `nombre_norm`** (NFKD → ASCII → minúsculas → solo `[a-z ]` → tokens **ordenados
+   alfabéticamente**) para las 6 restantes, también solo contra 2026. Da **5 únicas y 1 ambigua**.
+3. La ambigua se resuelve con la Regla 2.
+
+### Regla 1 — una persona, una postulación marcada
+
+Cinco cédulas del canon tienen **dos** postulaciones en 2026 (envíos duplicados: mismo nombre,
+misma ciudad, con días de diferencia):
+
+| Cédula | Postulaciones | Ciudad |
+|---|---|---|
+| 1025660370 | id 20390 (10-feb) · id 21860 (15-feb) | Medellín |
+| 1028885979 | id 16759 (28-ene) · id 21466 (13-feb) | Bogotá D.C. |
+| 1094050605 | id 21243 · id 21246 (ambas 12-feb) | Bogotá D.C. |
+| 1141115465 | id 11966 (26-ene) · id 20724 (11-feb) | Bogotá D.C. |
+| 1143954132 | id 11509 (23-ene) · id 21877 (15-feb) | Cali |
+
+**Regla:** `seleccionado = true` va en la **más reciente por `enviado_en`**; en empate, la de
+**mayor `id_publico`** (caso 1094050605, ambas del 12-feb). Las demás quedan `seleccionado = false`
+y con `duplicado_de = id_publico` de la elegida.
+
+Ninguna fila se descarta — se marca, como manda la regla 2 del §3. Y así el test 7 sigue dando
+exactamente 832.
+
+### Regla 2 — la ambigüedad por nombre
+
+Un solo caso, ya acotado a 2026:
+
+```
+canon: cedula 57951440  'Navarro Alvarez Rodrigo'
+  id 23989  cedula 57951430  2025-11-26  Paysandú  (UY, convocatoria 2026)
+  id 24012  cedula 56951430  2025-12-05  Paysandú  (UY, convocatoria 2026)
+```
+
+Misma convocatoria, misma ciudad, mismo `nombre_norm`, y las dos cédulas difieren del canon en uno
+y dos dígitos. **Es la misma persona postulándose dos veces con la cédula mal digitada las dos
+veces**, no dos personas distintas. Se resuelve con la **misma Regla 1**: marca la más reciente
+(id 24012) y pon `duplicado_de` en la otra.
+
+Cuál de las dos filas lleva la bandera **no cambia ningún conteo** — es la misma persona y solo una
+puede llevarla. Por eso se usa la regla simple y consistente en vez de inventar un criterio aparte.
+
+**Guardarraíl — cuándo NO decidas automáticamente:** aplica la Regla 1 solo si los candidatos
+comparten **convocatoria, `ciudad_norm` y `nombre_norm` idéntico**. Si difieren en cualquiera de
+las tres, son potencialmente personas distintas: déjalos sin match, `seleccionado=false`, y
+escríbelos en `etl/salida/matches_ambiguos.csv`. **No inventes una desempate nuevo.**
+
+### Qué escribir
+
+`resultado_seleccion` para **las 24.203** postulaciones, no solo para las 832: una sin match es una
+fila con `seleccionado=false`, jamás una fila ausente. Al terminar,
+`count(resultado_seleccion) == count(postulaciones)`.
+
+`resultado_programa` (retiro, avance, cursos aprobados) solo para las marcadas.
+
+En `matches_ambiguos.csv` registra **todo lo resuelto por las Reglas 1 y 2**, no solo lo que quede
+sin resolver: son 6 filas que una persona debe poder auditar después.
 
 **Caso Medellín:** la hoja `MED` del workbook tiene columna `Estado` (Seleccionados / No
-seleccionados) para 1.236 personas. Es el **único** rechazo explícito en toda la fuente. Cárgalo
+seleccionados) para 1.236 personas. Es el **único** rechazo explícito de toda la fuente. Cárgalo
 donde exista.
 
-**Aceptación: el script falla con código ≠ 0 si el total no llega a 832.** Un match parcial
-silencioso es peor que un error.
+### Aceptación
+
+- **832** filas con `seleccionado = true` — todas de convocatoria 2026
+- **6** filas con `duplicado_de` poblado (5 de la Regla 1 + 1 de la Regla 2)
+- `count(resultado_seleccion) == count(postulaciones) == 24.203`
+- `matches_ambiguos.csv` con las 6 resoluciones documentadas
+- El script **sale con código ≠ 0 si no llega a 832**. Un match parcial silencioso es peor que un
+  error. Si aparece una ambigüedad nueva que el guardarraíl no cubre, que falle y avise: la decide
+  un humano, no el script.
 
 ---
 
