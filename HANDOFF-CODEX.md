@@ -11,7 +11,7 @@ la salida está mal, no el documento.
 | Pieza | Estado |
 |---|---|
 | **T1** `etl/extraer_convocatoria.py` | Correcto. 24.203 filas, cuadra fila por fila con las 8 fuentes |
-| **T2** `etl/normalizar_convocatoria.py` | Escrito, **con huecos** — es tu prioridad 1 (§4) |
+| **T2** `etl/normalizar_convocatoria.py` | §4, §5 y §7 **verificados en verde** (2026-09-13). §6 `ciudad_norm` **reabierto**: poblado pero sin normalizar |
 | **T3** `etl/migraciones/001_esquema_inicial.sql` | **Aplicada** en Supabase. No la corras ni la edites |
 | **T6** `etl/migraciones/002_vistas.sql` | **Aplicada**. 5 vistas creadas |
 | Infraestructura | 12 tablas, 5 vistas, RLS activa en las 12, `campo_no_preguntado` con 10 filas |
@@ -98,17 +98,61 @@ cliente "¿cuándo terminaron la aplicación?", y sin él no hay curva de inscri
 
 ---
 
-## 6. PRIORIDAD 3 — `ciudad_norm` vacío en las 24.203
+## 6. PRIORIDAD 3 — `ciudad_norm` (REABIERTO 2026-09-13)
 
-No se implementó la normalización: solo quedó `ciudad_declarada` cruda, con 191 variantes en 2026 y
-451 en el COL 2025 enrutado. Ciudad es uno de los filtros principales y el eje del análisis
-internacional.
+El campo ya no está vacío: tiene 24.203 de 24.203. **Pero no está normalizado.** Es el texto crudo
+con los espacios recortados, y eso no sirve para un filtro.
 
-Poblar `ciudad_alias` con `ciudad_cruda → ciudad_norm`, `pais` y `tiene_cobertura`. Muchas variantes
-son la misma ciudad con espacio final (`Bucaramanga` vs `Bucaramanga `) o sin tilde.
+Mi criterio de aceptación original decía solo "poblar `ciudad_alias`", sin una verificación
+numérica como la que puse a los otros campos. Por eso pasó. Aquí va el criterio real.
 
-Ciudades **con** cobertura, convocatoria 2025: Barranquilla, Bogotá D.C., Cali, Cartagena de Indias,
-Medellín, Valle de Aburrá (CO) · Guayaquil (EC).
+### Lo que se midió (sobre las 22.605 postulaciones con datos, excluyendo las enrutadas)
+
+- **610 nombres distintos**, de los cuales **444 tienen una sola fila**
+- **56 grupos colapsan con solo quitar tildes y pasar a minúsculas**
+
+| Ciudad real | Filas | Repartidas en | Variantes |
+|---|---:|---:|---|
+| Quito | 662 | 6 | `Quito` 646 · `QUITO` 10 · `quito` 3 · `𝑸𝒖𝒊𝒕𝒐` 1 · `Quitó` 1 · `Quito,` 1 |
+| Paysandú | 340 | 3 | `Paysandú` · `Paysandu` · `paysandú` |
+| Ciudad de Panamá | 267 | 9 | `Panamá` 159 · `Panama` 52 · `Ciudad de Panamá` 44 · `PANAMA` 4 · … |
+| Durán | 39 | 3 | `Duran` 24 · `Durán` 13 · `DURAN` 2 |
+| Panamá Oeste | 31 | 5 | con y sin tilde, con y sin mayúscula |
+| Arraiján | 30 | 2 | con y sin tilde |
+| Colón, La Chorrera, Daule, Guayas, Colonia del Sacramento | ~120 | 2-3 c/u | mismo patrón |
+
+Colombia se ve bien **solo porque el formulario 2026 usaba lista desplegable**. Ecuador, Panamá y
+Uruguay eran texto libre, y ahí está todo el daño.
+
+**Impacto:** el filtro de ciudad — uno de los principales del pedido — mostraría Quito seis veces y
+subcontaría todas las ciudades fuera de Colombia. Panamá aparecería partida en nueve.
+
+### Qué hacer
+
+1. **Plegado agresivo antes de buscar el alias:** NFKC (arregla el `𝑸𝒖𝒊𝒕𝒐`, que son caracteres
+   matemáticos Unicode, no letras normales) → quitar tildes → minúsculas → quitar puntuación y
+   espacios repetidos. Eso solo resuelve los 56 grupos.
+2. **Alias explícitos para lo que el plegado no alcanza**, empezando por
+   `Ciudad de Panamá` ≡ `Panamá` — son la misma ciudad y hoy están separadas.
+3. **Valores que no son ciudades:** `Colombia` (4), `Ecuador` (1), `Ciudad` (3). Decide y documenta:
+   o van a `sin_dato`, o se conservan crudos con bandera. **No los dejes como si fueran ciudades.**
+4. **La cola de 444 ciudades con una sola fila** déjala como está de momento, pero escribe
+   `etl/salida/ciudades_cola_larga.csv` con ellas y su conteo, para que alguien pueda revisarla
+   a ojo después. Muchas son municipios reales; otras serán typos de las grandes.
+
+### Criterio de aceptación (este sí es verificable)
+
+- **Cero grupos que colapsen** al aplicar NFKC + quitar tildes + minúsculas + quitar puntuación
+- `Quito` = **662** en una sola categoría
+- `Paysandú` = **340** en una sola categoría
+- La capital panameña = **267** en una sola categoría
+- Nombres canónicos distintos en las 22.605 reales: **por debajo de 560** (hoy 610)
+- Ninguna ciudad canónica es un nombre de país
+
+### Lo que sí quedó bien y no hay que tocar
+
+`ciudad_alias` lleva `pais` correctamente: solo 5 casos aparecen bajo más de un país, de 1 a 2 filas
+cada uno (alguien en el formulario de Ecuador escribió "Bogotá D.C."). Eso es dato real, no un bug.
 
 ---
 
