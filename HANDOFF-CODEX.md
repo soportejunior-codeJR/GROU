@@ -134,11 +134,31 @@ subcontaría todas las ciudades fuera de Colombia. Panamá aparecería partida e
    espacios repetidos. Eso solo resuelve los 56 grupos.
 2. **Alias explícitos para lo que el plegado no alcanza**, empezando por
    `Ciudad de Panamá` ≡ `Panamá` — son la misma ciudad y hoy están separadas.
-3. **Valores que no son ciudades:** `Colombia` (4), `Ecuador` (1), `Ciudad` (3). Decide y documenta:
-   o van a `sin_dato`, o se conservan crudos con bandera. **No los dejes como si fueran ciudades.**
-4. **La cola de 444 ciudades con una sola fila** déjala como está de momento, pero escribe
-   `etl/salida/ciudades_cola_larga.csv` con ellas y su conteo, para que alguien pueda revisarla
-   a ojo después. Muchas son municipios reales; otras serán typos de las grandes.
+3. **Valores que no son ciudades:** los nombres de país ya quedaron en `sin_dato`. **Falta un
+   caso:** 6 filas traen una cédula o un teléfono en el campo de ciudad y hoy son 6 "ciudades"
+   canónicas — `0952527794`, `0952900447`, `1752130409 0`, `4835951 0`, `507 0`, `5 0`. Van a
+   `sin_dato` con la misma regla. Criterio: si al quitar dígitos y signos quedan 1 letra o menos,
+   no es una ciudad.
+   (De paso, `1752130409 0` delata que ese valor entró como float `1752130409.0` — vale la pena
+   revisar que no haya más columnas leídas como número en vez de texto.)
+4. **La cola de ciudades con una sola fila** déjala como está, pero escríbela a
+   `etl/salida/ciudades_cola_larga.csv` para revisión humana posterior. Muchas son municipios
+   reales; otras serán typos de las grandes.
+
+   **Corrección de este documento (2026-09-13):** decía "444" y ese número describía los singletons
+   del `ciudad_norm` *viejo* (el que no estaba normalizado). No es comparable con la cola de
+   **crudos**, que es lo correcto de poner en el CSV. Las tres cifras, todas sobre las 22.605
+   postulaciones con datos:
+
+   | Medida | Singletons |
+   |---|---:|
+   | `ciudad_declarada` (crudo) — lo que va al CSV | **487** |
+   | `ciudad_norm` viejo, sin normalizar — de donde salió el "444" | 444 |
+   | `ciudad_norm` nuevo, ya normalizado | **387** |
+
+   Que la cola crecra de 444 a 486/487 **no significa que se perdiera nada**: son poblaciones
+   distintas. Normalizar solo puede reducir el número de categorías, nunca aumentarlo.
+   El indicador que vale de aquí en adelante es **387**.
 
 ### Criterio de aceptación (este sí es verificable)
 
