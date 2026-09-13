@@ -290,6 +290,21 @@ comparten **convocatoria, `ciudad_norm` y `nombre_norm` idéntico**. Si difieren
 las tres, son potencialmente personas distintas: déjalos sin match, `seleccionado=false`, y
 escríbelos en `etl/salida/matches_ambiguos.csv`. **No inventes una desempate nuevo.**
 
+### El esquema — ya está listo (2026-09-13)
+
+`duplicado_de` **no existía** cuando escribí la §9: la inventé y no la agregué al esquema. Por eso
+T5 murió con `400 / 42703 column does not exist`. Error mío, ya corregido.
+
+`etl/migraciones/003_duplicado_de.sql` **está aplicada y verificada** en Supabase (idempotente,
+corrida dos veces). `resultado_seleccion` ahora tiene `duplicado_de integer null`, con índice
+parcial y un check de que sea positivo. **No la vuelvas a correr ni la edites.**
+
+**Lo que sí te toca a ti:** exponer `duplicado_de` en `v_analisis_postulaciones`, dentro de
+`002_vistas.sql`, **al final de la lista de columnas**. Postgres deja agregar columnas al final con
+`create or replace view`; lo que no deja es quitarlas, renombrarlas ni reordenarlas. Sin esa
+columna el panel no puede distinguir una postulación duplicada de una que simplemente no fue
+seleccionada, y el usuario vería dos filas idénticas sin explicación.
+
 ### Qué escribir
 
 `resultado_seleccion` para **las 24.203** postulaciones, no solo para las 832: una sin match es una
