@@ -1176,3 +1176,125 @@ convierte un informe muerto en un punto de partida.**
 - [ ] La tabla de resultados no aparece en el PDF
 - [ ] URL con los filtros al pie
 - [ ] Probado imprimiendo de verdad a PDF, no solo mirando la vista previa
+
+---
+
+# T14 — Rangos como botones, y la identidad visual de Jóvenes creaTIvos
+
+## Parte A — Filtros numéricos: botones además de rango
+
+Hoy los campos numéricos solo se filtran con barra deslizante. Es preciso pero incómodo: para
+elegir "estrato 3" hay que arrastrar dos extremos hasta cuadrarlos en el mismo punto.
+
+### El interruptor
+
+**Un solo control arriba**, junto al selector de modo TODAS/AL_MENOS_UNA, que cambia **todos** los
+filtros numéricos a la vez. No uno por tarjeta: sería ruido y obligaría a decidir treinta veces lo
+mismo.
+
+Sobre el texto del botón: pediste que diga hacia dónde cambia —"Rango" cuando estás en botones—.
+Funciona, pero un botón que dice "Rango" también se puede leer como "estás en rango". **Usa el
+verbo y se acaba la ambigüedad:** `Ver como rango` / `Ver como botones`. Mismo comportamiento, sin
+que nadie tenga que adivinar.
+
+La preferencia se recuerda en la URL, junto a los filtros, para que un enlace compartido abra igual
+que lo dejaste.
+
+### Qué botones генera cada campo
+
+No todos los numéricos se pueden volver botones de la misma forma:
+
+| Campo | Rango real | En modo botones |
+|---|---|---|
+| `estrato` | 1–6 | **Un botón por valor**: 1, 2, 3, 4, 5, 6 |
+| `personas_nucleo` | 1–7 | **Un botón por valor**, con el 7 rotulado "7 o más" |
+| `edad` | 10–66 | **Tramos**: 15 o menos · 16-17 · 18-20 · 21-24 · 25-29 · 30 o más |
+| `indice_activos` | 0–100 | **Cuartiles**: 0-25 · 26-50 · 51-75 · 76-100 |
+| `promedio_pct` | 0–100 | **Tramos**: menos de 60 · 60-69 · 70-79 · 80-89 · 90-100 |
+| `cursos_aprobados`, `pct_avance` | según carga | Tramos, misma lógica |
+
+**Regla:** si el campo tiene 10 valores distintos o menos, un botón por valor. Si tiene más,
+tramos con sentido para quien lee, no cortes automáticos en cinco partes iguales.
+
+Cada botón lleva su conteo y su porcentaje, como los categóricos, y sale de `contarFacetas()`.
+La opción **"Sin dato"** también es un botón, con las mismas reglas de §4: se esconde si está en
+cero, y la tarjeta entera desaparece si ningún botón tiene datos.
+
+### Lo que no puede pasar
+
+Cambiar de botones a rango **no debe perder el filtro puesto**. Si alguien eligió el tramo 18-20 y
+cambia a rango, la barra debe quedar en 18–20. Al revés, un rango que no cuadra con ningún tramo
+—digamos 19–23— se muestra en modo botones con los tramos que toca marcados parcialmente, o el
+interruptor avisa de que el rango es más fino que los tramos. **Lo que no vale es borrar la
+selección en silencio.**
+
+---
+
+## Parte B — Identidad visual de Jóvenes creaTIvos
+
+La fuente es el **Manual de Identidad Corporativa 2025 (DE-004-M v03)** y su extensión digital,
+`BRAND-DIGITAL.md` en el repo `panel-datos-rofe`. No inventes colores ni tipografías.
+
+### Paleta oficial
+
+| Color | Hex | Rol |
+|---|---|---|
+| Amarillo | `#EEC935` | Acento de énfasis |
+| Naranja | `#D1793F` | Mujeres ROFÉ, datos secundarios |
+| Rojo | `#C12D4C` | Alertas, "riesgo" |
+| Azul marca | `#406C9E` | **Solo chrome/UI**: títulos, botones, cabeceras |
+| Verde | `#6EA050` | Éxito, "completado" |
+| Azul sec. 1 | `#6FA0BC` | Series de datos primarias |
+| Azul sec. 2 | `#83B6DD` | Series de datos |
+
+**Tipografía: Century Gothic** en todo el panel.
+
+### Dónde aplicarla
+
+- **UI** — encabezado, botones, chips de filtro activo, bordes de tarjeta, el interruptor de la
+  Parte A: azul marca `#406C9E`.
+- **Estados** — verde `#6EA050` para seleccionados/completado, rojo `#C12D4C` solo para alertas
+  reales. El rojo **no** se usa para "no seleccionado": no es un error, es una categoría.
+- **Fondos** — blanco y grises neutros. Nada de degradados detrás de datos.
+
+### Una tensión que hay que decidir, no resolver por cuenta propia
+
+Los gráficos usan hoy `#1f6feb` para lo seleccionado y `#6b7280` para el resto, una pareja
+validada con el script del skill de visualización. **La paleta de marca no tiene un par que pase
+las mismas comprobaciones**, y lo verifiqué uno por uno:
+
+| Pareja probada | Separación normal | Veredicto |
+|---|---:|---|
+| `#6FA0BC` + gris `#6b7280` | ΔE 13,9 | **Falla** (piso 15) |
+| `#6EA050` + gris `#8a8f96` | ΔE 13,0 | **Falla** |
+| `#406C9E` + gris claro `#a8adb4` | ΔE 23,8 | Pasa, pero el manual prohíbe ese azul para datos |
+| `#C12D4C` + gris `#8a8f96` | ΔE 21,8 | Pasa, pero el rojo significa alerta |
+
+Los azules de datos de la marca son deliberadamente suaves —pensados para convivir entre varias
+series— y por eso no se despegan de un gris neutro.
+
+**Recomendación:** usar `#406C9E` para la marca resaltada y `#a8adb4` para el resto, documentándolo
+como **excepción deliberada y validada**. La regla del manual protege contra usar ese azul entre
+varias series de datos compitiendo; aquí no hay competencia: hay **una** marca resaltada contra un
+fondo neutro, que es un caso distinto. Como el gris queda por debajo de 3:1 contra el fondo, las
+etiquetas de valor van visibles siempre.
+
+**Esto lo decide Samuel, no Codex.** Si prefiere no tocar la regla del manual, la alternativa es
+dejar los colores actuales en los gráficos y aplicar la marca solo a la interfaz — que también es
+una respuesta legítima: el manual gobierna la identidad, y un gráfico daltónico-seguro es un
+requisito funcional que puede convivir con ella.
+
+---
+
+## Aceptación de T14
+
+- [ ] Interruptor único arriba, rotulado con verbo (`Ver como rango` / `Ver como botones`)
+- [ ] Afecta a todos los campos numéricos a la vez
+- [ ] Botón por valor cuando hay ≤ 10 valores; tramos con sentido cuando hay más
+- [ ] Cada botón con su conteo y porcentaje, desde `contarFacetas()`
+- [ ] "Sin dato" como botón, con las reglas de ocultamiento de §4
+- [ ] Cambiar de modo **conserva** el filtro puesto, nunca lo borra en silencio
+- [ ] La preferencia viaja en la URL
+- [ ] Century Gothic y la paleta oficial aplicadas a la interfaz
+- [ ] Decisión de Samuel sobre los colores de gráfico, aplicada y documentada
+- [ ] Claro y oscuro verificados en ambos
