@@ -50,7 +50,7 @@ const NUMERICOS = new Set([
   // datos personales pediria las personas equivocadas. Ademas un diccionario de
   // 24.203 cadenas unicas engorda el archivo sin ganar nada.
   'id_publico',
-  'edad', 'estrato', 'personas_nucleo', 'indice_activos',
+  'edad', 'estrato', 'personas_nucleo', 'indice_activos', 'cursos_inscritos',
   'promedio_pct', 'horas_min', 'horas_max', 'pct_avance', 'cursos_aprobados',
 ]);
 // OJO: esta lista dice que campos PODRIAN ser booleanos, no que lo sean. El tipo
@@ -213,6 +213,19 @@ function comprimir(filas) {
       columnas[campo] = col;
     }
   }
+
+  const categorias = [
+    ['Con datos', 'Sin dato', 'No aplica'],
+    ['No', 'Sí'],
+  ];
+  const curso = filas.map((f) => f.seleccionado === true
+    ? (f.pct_avance == null ? 1 : 0)
+    : 2);
+  campos.datos_curso = { tipo: 'cat', etiqueta: 'Datos de curso', valores: categorias[0] };
+  columnas.datos_curso = curso;
+  const duplicados = filas.map((f) => f.duplicado_de == null ? 0 : 1);
+  campos.envio_duplicado = { tipo: 'cat', etiqueta: 'Envío duplicado', valores: categorias[1] };
+  columnas.envio_duplicado = duplicados;
 
   return {
     version: 1,

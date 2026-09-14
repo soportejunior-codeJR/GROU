@@ -4,17 +4,8 @@ import { useMemo } from 'react';
 import { contarFacetas, type Dataset, type Filtros, type Modo } from '@/lib/dataset';
 import GraficoFaceta from './GraficoFaceta';
 import { LABELS } from './FiltroCard';
-
-const HIDDEN = new Set([
-  'id_publico',
-  'edad_valida',
-  'edad_estado',
-  'promedio_escala',
-  'promedio_estado',
-  'nucleo_estado',
-  'indice_activos_estado',
-  'nucleo_es_tope',
-]);
+import { camposOcultos } from '@/lib/camposPanel';
+import { describirFiltros } from '@/lib/describirFiltros';
 
 export default function Informe({
   ds,
@@ -32,7 +23,7 @@ export default function Informe({
   const campos = useMemo(
     () =>
       Object.keys(ds.campos).filter((campo) => {
-        if (HIDDEN.has(campo)) return false;
+        if (camposOcultos(ds).has(campo)) return false;
         const def = ds.campos[campo];
         if (def.tipo === 'num') {
           return Array.from(indices).some((i) => ds.columnas[campo]?.[i] != null);
@@ -42,7 +33,7 @@ export default function Informe({
     [ds, filtros, indices, modo],
   );
   const porcentaje = indices.length ? ((seleccionadas / indices.length) * 100).toFixed(1) : '0.0';
-  const filtrosTexto = describirFiltros(ds, filtros);
+  const filtrosTexto = describirFiltros(ds, filtros, LABELS);
   const url = typeof window === 'undefined' ? '' : window.location.href;
   const fecha = new Date().toLocaleString('es-CO');
 
@@ -78,18 +69,4 @@ export default function Informe({
       <p className="print-url">URL del panel: {url}</p>
     </section>
   );
-}
-
-function describirFiltros(ds: Dataset, filtros: Filtros) {
-  return Object.entries(filtros)
-    .map(([campo, filtro]) => {
-      const label = LABELS[campo] ?? ds.campos[campo]?.etiqueta ?? campo;
-      if (filtro.tipo === 'bool') return `${label}: ${filtro.valor ? 'Sí' : 'No'}`;
-      if (filtro.tipo === 'num') {
-        return `${label}: ${filtro.min}–${filtro.max}${filtro.incluirSinDato ? ' + Sin dato' : ''}`;
-      }
-      const values = filtro.valores.map((i) => ds.campos[campo].valores?.[i]).filter(Boolean);
-      return `${label}: ${values.join(', ')}`;
-    })
-    .join(' · ');
 }

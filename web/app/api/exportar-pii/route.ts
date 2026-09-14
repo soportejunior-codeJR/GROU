@@ -19,6 +19,7 @@ const CAMPOS = [
   'convocatoria',
   'seleccionado',
 ] as const;
+const ETIQUETAS = ['ID público', 'Cédula', 'Nombres', 'Apellidos', 'Email', 'Celular', 'Ciudad', 'Convocatoria', 'Seleccionada'];
 
 type Body = { ids?: unknown; filtros?: unknown };
 
@@ -119,7 +120,7 @@ export async function POST(request: Request) {
   if (logError)
     return NextResponse.json({ error: 'No se pudo registrar la exportación' }, { status: 500 });
 
-  const csv = [CAMPOS.join(','), ...filas.map((fila) => fila.map(escaparCsv).join(','))].join('\n');
+  const csv = `\uFEFF${[ETIQUETAS.join(','), ...filas.map((fila) => fila.map(escaparCsv).join(','))].join('\n')}`;
   return new NextResponse(csv, {
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',

@@ -149,7 +149,8 @@ def main():
     dataset_path = ROOT.parent / "web" / "data" / "postulaciones.json"
     dataset = json.loads(dataset_path.read_text(encoding="utf-8")) if dataset_path.exists() else {}
     dataset_ok = dataset.get("es_ejemplo") is False and dataset.get("total") == 24203
-    comparables = sorted(set(dataset.get("campos", {})) & set(view[0] if view else {}))
+    derivados = {"datos_curso", "envio_duplicado"}
+    comparables = sorted((set(dataset.get("campos", {})) - derivados) & set(view[0] if view else {}))
     diferencias = {}
     if dataset_ok:
         for campo in comparables:
@@ -158,7 +159,7 @@ def main():
             if esperado != recibido:
                 diferencias[campo] = {"esperado": sum((esperado - recibido).values()),
                                       "recibido": sum((recibido - esperado).values())}
-    failures += not check(16, dataset_ok and len(comparables) == len(dataset.get("campos", {})) and not diferencias,
+    failures += not check(16, dataset_ok and len(comparables) == len(dataset.get("campos", {})) - len(derivados) and not diferencias,
                           f"campos={len(comparables)} diferencias={diferencias}")
     programs=api.get("resultado_programa", "postulacion_id,cohorte,retirado,pct_avance,cursos_aprobados",
                      order="postulacion_id")
@@ -170,6 +171,11 @@ def main():
     failures += not check(17, (len(programs), metric_2025, metric_2026, retired_2025, no_programa) == (1554, 559, 776, 0, 22649),
                           f"metricas_2025={metric_2025} metricas_2026={metric_2026} "
                           f"retirados_2025_con_dato={retired_2025} no_aplica={no_programa}")
+    curso_values = dataset.get("campos", {}).get("datos_curso", {}).get("valores", [])
+    curso_counts = Counter(curso_values[v] for v in dataset.get("columnas", {}).get("datos_curso", []) if v < len(curso_values))
+    cursos_num = dataset.get("campos", {}).get("cursos_inscritos", {}).get("tipo") == "num"
+    failures += not check(18, curso_counts == Counter({"Con datos": 1335, "Sin dato": 219, "No aplica": 22649}) and cursos_num,
+                          f"datos_curso={dict(curso_counts)} cursos_inscritos={dataset.get('campos', {}).get('cursos_inscritos', {}).get('tipo')}")
     print(f"T7 {'FALLA' if failures else 'OK'}: fallas={failures}")
     return 1 if failures else 0
 

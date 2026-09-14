@@ -10,12 +10,14 @@ import {
   cerrarSesion,
 } from '@/lib/auth';
 import { filtrar, type Dataset, type Filtro, type Filtros, type Modo } from '@/lib/dataset';
-import FiltroCard from '@/components/FiltroCard';
+import FiltroCard, { LABELS } from '@/components/FiltroCard';
 import Encabezado from '@/components/Encabezado';
 import TablaResultados from '@/components/TablaResultados';
 import Informe from '@/components/Informe';
 import HeroParticulas from '@/components/HeroParticulas';
 import BackgroundPaths from '@/components/BackgroundPaths';
+import { camposOcultos } from '@/lib/camposPanel';
+import { describirFiltros } from '@/lib/describirFiltros';
 import { encodeFilter, parseUrl } from '@/lib/urlFiltros';
 
 const GROUPS = [
@@ -26,7 +28,7 @@ const GROUPS = [
   },
   {
     name: 'Perfil',
-    fields: ['edad', 'genero', 'situacion_educativa', 'promedio_pct', 'segmentos'],
+    fields: ['edad', 'genero', 'situacion_educativa', 'promedio_pct', 'segmentos', 'anio_grado'],
     color: 'sky',
   },
   {
@@ -67,17 +69,9 @@ const GROUPS = [
     ],
     color: 'red',
   },
+  { name: 'Antecedentes con JC', fields: ['aplico_antes_jc', 'fue_beneficiario_antes'], color: 'blue' },
+  { name: 'Programa', fields: ['datos_curso', 'pct_avance', 'cursos_inscritos', 'cursos_aprobados'], color: 'green' },
 ] as const;
-
-const CAMPOS_TECNICOS_OCULTOS = new Set([
-  'edad_valida',
-  'edad_estado',
-  'promedio_escala',
-  'promedio_estado',
-  'nucleo_estado',
-  'indice_activos_estado',
-  'nucleo_es_tope',
-]);
 
 export default function Pagina() {
   const [correo, setCorreo] = useState<string | null>(null);
@@ -223,11 +217,15 @@ function Explorador({ ds }: { ds: Dataset }) {
       'seleccionado',
       'duplicado_de',
     ];
-    const lines = [cols.join(',')];
+    const etiquetas: Record<string, string> = {
+      id_publico: 'ID público', convocatoria: 'Convocatoria', pais: 'País', ciudad: 'Ciudad',
+      fecha_envio: 'Fecha de envío', seleccionado: 'Seleccionada', duplicado_de: 'Duplicado de',
+    };
+    const lines = [cols.map((c) => etiquetas[c]).join(',')];
     Array.from(indices).forEach((i) =>
       lines.push(cols.map((c) => csv(valueAt(ds, c, i))).join(',')),
     );
-    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob([`\uFEFF${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'postulaciones_filtradas_sin_pii.csv';
@@ -273,9 +271,7 @@ function Explorador({ ds }: { ds: Dataset }) {
     URL.revokeObjectURL(a.href);
   };
   const used: Set<string> = new Set(GROUPS.flatMap((group) => group.fields));
-  const extra = Object.keys(ds.campos).filter(
-    (c) => !used.has(c) && c !== 'id_publico' && !CAMPOS_TECNICOS_OCULTOS.has(c),
-  );
+  const extra = Object.keys(ds.campos).filter((c) => !used.has(c) && !camposOcultos(ds).has(c));
   return (
     <>
       <Encabezado
@@ -312,6 +308,15 @@ function Explorador({ ds }: { ds: Dataset }) {
         </button>
         <span className="muted">{Object.keys(filtros).length} filtros activos</span>
       </div>
+      {Object.keys(filtros).length > 0 && (
+        <div className="active-filters panel-controls" aria-label="Filtros activos">
+          {Object.keys(filtros).map((campo) => (
+            <button type="button" className="filter-chip" key={campo} onClick={() => cambiar(campo, null)}>
+              {describirFiltros(ds, { [campo]: filtros[campo] }, LABELS)} ×
+            </button>
+          ))}
+        </div>
+      )}
       <div className="panel-controls">
         {GROUPS.map((group) => (
           <section key={group.name} className={`filter-group group-${group.color}`}>
