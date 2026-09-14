@@ -49,6 +49,63 @@ def check(n, condition, detail=""):
     return bool(condition)
 
 
+def js_string(valor):
+    if isinstance(valor, bool):
+        return "true" if valor else "false"
+    if isinstance(valor, float) and valor.is_integer():
+        return str(int(valor))
+    return str(valor)
+
+
+def clave(valor):
+    if isinstance(valor, bool):
+        return ("bool", valor)
+    if isinstance(valor, (int, float)):
+        return ("num", float(valor))
+    if isinstance(valor, tuple):
+        return ("tuple", tuple(clave(x) for x in valor))
+    return ("valor", valor)
+
+
+def distribucion_dataset(ds, campo):
+    definicion = ds["campos"][campo]
+    valores = ds["columnas"][campo]
+    salida = []
+    for valor in valores:
+        if valor is None:
+            salida.append(None)
+        elif definicion["tipo"] == "cat":
+            salida.append(definicion["valores"][valor])
+        elif definicion["tipo"] == "multi":
+            salida.append(tuple(definicion["valores"][x] for x in valor))
+        elif definicion["tipo"] == "bool":
+            salida.append(bool(valor))
+        else:
+            salida.append(valor)
+    return Counter(clave(x) for x in salida)
+
+
+def distribucion_fuente(filas, campo, definicion):
+    salida = []
+    for fila in filas:
+        valor = fila.get(campo)
+        if campo == "edad" and fila.get("edad_valida") is not True:
+            valor = None
+        if definicion["tipo"] == "multi":
+            valor = tuple(valor) if valor else ("sin_dato",)
+        elif definicion["tipo"] == "num":
+            valor = None if valor is None else float(valor)
+        elif definicion["tipo"] == "bool":
+            valor = bool(valor)
+        else:
+            if valor is None or valor == "":
+                valor = "Sin dato"
+            else:
+                valor = js_string(valor)
+        salida.append(valor)
+    return Counter(clave(x) for x in salida)
+
+
 def main():
     env(); url=os.getenv("CONV_SUPABASE_URL"); service=os.getenv("CONV_SUPABASE_SERVICE_ROLE_KEY"); anon=os.getenv("CONV_SUPABASE_ANON_KEY")
     if not url or not service or not anon: raise SystemExit("faltan credenciales CONV_SUPABASE")
@@ -86,6 +143,20 @@ def main():
     sums={k:sum(bool(x.get(k)) for x in view) for k in categorical+arrays}
     failures += not check(14, len(view)==24203 and all(v==24203 for v in sums.values()), "segmentaciones")
     failures += not check(15, sum(counts.values())==24203 and len(posts)==24203, f"fuentes={sum(counts.values())}")
+    dataset_path = ROOT.parent / "web" / "data" / "postulaciones.json"
+    dataset = json.loads(dataset_path.read_text(encoding="utf-8")) if dataset_path.exists() else {}
+    dataset_ok = dataset.get("es_ejemplo") is False and dataset.get("total") == 24203
+    comparables = sorted(set(dataset.get("campos", {})) & set(view[0] if view else {}))
+    diferencias = {}
+    if dataset_ok:
+        for campo in comparables:
+            esperado = distribucion_fuente(view, campo, dataset["campos"][campo])
+            recibido = distribucion_dataset(dataset, campo)
+            if esperado != recibido:
+                diferencias[campo] = {"esperado": sum((esperado - recibido).values()),
+                                      "recibido": sum((recibido - esperado).values())}
+    failures += not check(16, dataset_ok and len(comparables) == len(dataset.get("campos", {})) and not diferencias,
+                          f"campos={len(comparables)} diferencias={diferencias}")
     print(f"T7 {'FALLA' if failures else 'OK'}: fallas={failures}")
     return 1 if failures else 0
 

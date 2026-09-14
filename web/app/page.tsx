@@ -21,7 +21,7 @@ const GROUPS = [
   ['Situación', ['ocupaciones', 'condicion_laboral', 'emprendimiento', 'otros_programas']],
   [
     'Socioeconómico',
-    ['estrato', 'ingreso_hogar', 'personas_nucleo', 'tipo_vivienda', 'indice_activos'],
+    ['estrato_cat', 'ingreso_hogar', 'personas_nucleo', 'tipo_vivienda', 'indice_activos'],
   ],
   [
     'Capacidad',
@@ -36,6 +36,16 @@ const GROUPS = [
   ],
   ['Origen del contacto', ['como_se_entero', 'tiene_embajador']],
 ] as const;
+
+const CAMPOS_TECNICOS_OCULTOS = new Set([
+  'edad_valida',
+  'edad_estado',
+  'promedio_escala',
+  'promedio_estado',
+  'nucleo_estado',
+  'indice_activos_estado',
+  'nucleo_es_tope',
+]);
 
 export default function Pagina() {
   const [correo, setCorreo] = useState<string | null>(null);
@@ -221,7 +231,9 @@ function Explorador({ ds }: { ds: Dataset }) {
     URL.revokeObjectURL(a.href);
   };
   const used: Set<string> = new Set(GROUPS.flatMap(([, fields]) => fields));
-  const extra = Object.keys(ds.campos).filter((c) => !used.has(c) && c !== 'id_publico');
+  const extra = Object.keys(ds.campos).filter(
+    (c) => !used.has(c) && c !== 'id_publico' && !CAMPOS_TECNICOS_OCULTOS.has(c),
+  );
   return (
     <>
       <Encabezado

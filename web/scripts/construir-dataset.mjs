@@ -172,7 +172,11 @@ function comprimir(filas) {
 
   for (const campo of nombres) {
     if (NUMERICOS.has(campo)) {
-      const col = filas.map((f) => (f[campo] === null ? null : Number(f[campo])));
+      const col = filas.map((f) => {
+        if (f[campo] === null || f[campo] === undefined) return null;
+        if (campo === 'edad' && f.edad_valida !== true) return null;
+        return Number(f[campo]);
+      });
       const reales = col.filter((v) => v !== null);
       campos[campo] = {
         tipo: 'num',

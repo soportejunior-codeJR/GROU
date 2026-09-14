@@ -9,17 +9,19 @@ type Item = { count: number; index: number; label: string };
 export default function GraficoFaceta({ ds, campo, filtros, modo }: Props) {
   const def = ds.campos[campo];
   const counts = useMemo(() => contarFacetas(ds, campo, filtros, modo), [ds, campo, filtros, modo]);
+  const denominator = useMemo(() => filtrar(ds, filtros, modo, campo).length, [ds, campo, filtros, modo]);
   const selected = selectedValues(filtros[campo]);
   const labels = def.valores ?? [];
-  if (def.tipo === 'num') return <Histograma ds={ds} campo={campo} filtros={filtros} modo={modo} />;
+  if (def.tipo === 'num')
+    return <Histograma ds={ds} campo={campo} filtros={filtros} modo={modo} denominator={denominator} />;
   const visible = counts
     .map((count, index) => ({ count, index, label: labels[index] ?? String(index) }))
     .filter((item) => item.count > 0 || selected.includes(item.index));
   const chart =
     def.tipo === 'multi' || visible.length > 6 ? (
-      <Barras items={visible} selected={selected} />
+      <Barras items={visible} selected={selected} denominator={denominator} />
     ) : (
-      <Dona items={visible} selected={selected} />
+      <Dona items={visible} selected={selected} denominator={denominator} />
     );
   return (
     <div className="chart">
@@ -29,7 +31,7 @@ export default function GraficoFaceta({ ds, campo, filtros, modo }: Props) {
   );
 }
 
-function Dona({ items, selected }: { items: Item[]; selected: number[] }) {
+function Dona({ items, selected, denominator }: { items: Item[]; selected: number[]; denominator: number }) {
   const total = items.reduce((sum, item) => sum + item.count, 0);
   let offset = 0;
   return (
@@ -68,7 +70,7 @@ function Dona({ items, selected }: { items: Item[]; selected: number[] }) {
             key={item.index}
             className={selected.includes(item.index) ? 'chart-label-selected' : ''}
           >
-            {item.label}: {item.count.toLocaleString('es-CO')}
+            {item.label}: {formatCount(item.count, denominator)}
           </span>
         ))}
       </div>
@@ -76,7 +78,7 @@ function Dona({ items, selected }: { items: Item[]; selected: number[] }) {
   );
 }
 
-function Barras({ items, selected }: { items: Item[]; selected: number[] }) {
+function Barras({ items, selected, denominator }: { items: Item[]; selected: number[]; denominator: number }) {
   const sorted = [...items].sort((a, b) => b.count - a.count);
   const shown =
     items.length > 20
@@ -96,21 +98,21 @@ function Barras({ items, selected }: { items: Item[]; selected: number[] }) {
         <div
           className="bar-row"
           key={item.index}
-          title={`${item.label}: ${item.count.toLocaleString('es-CO')}`}
+          title={`${item.label}: ${formatCount(item.count, denominator)}`}
         >
           <span className="bar-label">{item.label}</span>
           <span
             className={selected.includes(item.index) ? 'bar-selected' : 'bar-rest'}
             style={{ width: `${(item.count / max) * 100}%` }}
           />
-          <strong>{item.count.toLocaleString('es-CO')}</strong>
+          <strong>{formatCount(item.count, denominator)}</strong>
         </div>
       ))}
     </div>
   );
 }
 
-function Histograma({ ds, campo, filtros, modo }: Props) {
+function Histograma({ ds, campo, filtros, modo, denominator }: Props & { denominator: number }) {
   const base = useMemo(() => filtrar(ds, filtros, modo, campo), [ds, campo, filtros, modo]);
   const def = ds.campos[campo];
   const min = def.min ?? 0;
@@ -128,7 +130,9 @@ function Histograma({ ds, campo, filtros, modo }: Props) {
   const maxCount = Math.max(...bins.map((bin) => bin.count), 1);
   return (
     <div className="histogram">
-      <p className="chart-note">Rango elegido · {base.length.toLocaleString('es-CO')} filas</p>
+      <p className="chart-note">
+        Rango elegido · {formatCount(base.length, denominator)} filas
+      </p>
       <div className="histogram-bars">
         {bins.map((bin) => (
           <div className="histogram-bin" key={bin.index} title={`${bin.label}: ${bin.count}`}>
@@ -143,4 +147,9 @@ function Histograma({ ds, campo, filtros, modo }: Props) {
 
 function selectedValues(filter: Filtros[string] | undefined) {
   return filter && (filter.tipo === 'cat' || filter.tipo === 'multi') ? filter.valores : [];
+}
+
+function formatCount(count: number, denominator: number) {
+  const pct = denominator ? ((count / denominator) * 100).toFixed(1).replace('.', ',') : '0,0';
+  return `${count.toLocaleString('es-CO')} (${pct} %)`;
 }

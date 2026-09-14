@@ -43,7 +43,6 @@ export default function TablaResultados({ ds, indices }: { ds: Dataset; indices:
 }
 
 function valueAt(ds: Dataset, c: string, i: number): string | number | boolean | null {
-  if (c === 'id_publico') return i + 1;
   const d = ds.campos[c];
   const v = ds.columnas[c]?.[i];
   if (v === null || v === undefined) return null;

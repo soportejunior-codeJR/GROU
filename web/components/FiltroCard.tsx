@@ -1,7 +1,14 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { contarFacetas, type Dataset, type Filtro, type Filtros, type Modo } from '@/lib/dataset';
+import {
+  contarFacetas,
+  filtrar,
+  type Dataset,
+  type Filtro,
+  type Filtros,
+  type Modo,
+} from '@/lib/dataset';
 import GraficoFaceta from './GraficoFaceta';
 
 const LABELS: Record<string, string> = {
@@ -12,7 +19,7 @@ const LABELS: Record<string, string> = {
   edad: 'Edad',
   genero: 'Género',
   situacion_educativa: 'Situación educativa',
-  promedio_pct: 'Promedio (%)',
+  promedio_pct: 'Promedio escolar',
   segmentos: 'Segmentos',
   ocupaciones: 'Ocupaciones',
   condicion_laboral: 'Condición laboral',
@@ -81,6 +88,9 @@ const LABELS: Record<string, string> = {
   no_aplica: 'No aplica',
 };
 
+const INDICE_TOOLTIP =
+  'Índice construido por nosotros: combina elementos del hogar (50 %) y servicios (50 %). No es una pregunta del formulario.';
+
 export default function FiltroCard({
   ds,
   campo,
@@ -98,10 +108,19 @@ export default function FiltroCard({
   const def = ds.campos[campo];
   const actual = filtros[campo];
   const counts = useMemo(() => contarFacetas(ds, campo, filtros, modo), [ds, campo, filtros, modo]);
+  const base = useMemo(() => filtrar(ds, filtros, modo, campo), [ds, campo, filtros, modo]);
   const label = LABELS[campo] ?? def.etiqueta;
   const activo = Boolean(actual);
+  const tieneDatos =
+    def.tipo === 'num'
+      ? base.some((i) => ds.columnas[campo]?.[i] !== null && ds.columnas[campo]?.[i] !== undefined)
+      : counts.some((count) => count > 0);
+  if (!tieneDatos && !activo) return null;
   return (
-    <fieldset className={`filter-card${grafico ? ' filter-card-chart' : ''}`}>
+    <fieldset
+      className={`filter-card${grafico ? ' filter-card-chart' : ''}`}
+      title={campo === 'indice_activos' ? INDICE_TOOLTIP : undefined}
+    >
       <div className="card-head">
         <legend>{label}</legend>
         <button
@@ -134,6 +153,7 @@ export default function FiltroCard({
           cambiar={cambiar}
           actual={actual}
           counts={counts}
+          denominator={base.length}
         />
       )}
     </fieldset>
@@ -147,6 +167,7 @@ function Control({
   cambiar,
   actual,
   counts,
+  denominator,
 }: {
   ds: Dataset;
   campo: string;
@@ -154,6 +175,7 @@ function Control({
   cambiar: (c: string, f: Filtro | null) => void;
   actual: Filtro | undefined;
   counts: number[];
+  denominator: number;
 }) {
   const def = ds.campos[campo];
   if (def.tipo === 'num') {
@@ -209,7 +231,7 @@ function Control({
                 cambiar(campo, e.target.checked ? { tipo: 'bool', valor: v as 0 | 1 } : null)
               }
             />{' '}
-            {v ? 'Sí' : 'No'} <small>{counts[v] ?? 0}</small>
+            {v ? 'Sí' : 'No'} <small>{formatearConteo(counts[v] ?? 0, denominator)}</small>
           </label>
         ))}
       </>
@@ -220,7 +242,8 @@ function Control({
     actual && (actual.tipo === 'cat' || actual.tipo === 'multi') ? actual.valores : [];
   return (
     <div className="options">
-      {values.map((value, i) => (
+      {values.map((value, i) =>
+        (counts[i] > 0 || selected.includes(i)) && (
         <label className="check" key={value}>
           <input
             type="checkbox"
@@ -230,9 +253,15 @@ function Control({
               cambiar(campo, next.length ? ({ tipo: def.tipo, valores: next } as Filtro) : null);
             }}
           />{' '}
-          <span>{value}</span> <small>{counts[i] ?? 0}</small>
+          <span>{value}</span> <small>{formatearConteo(counts[i] ?? 0, denominator)}</small>
         </label>
-      ))}
+        ),
+      )}
     </div>
   );
+}
+
+function formatearConteo(count: number, denominator: number) {
+  const pct = denominator ? ((count / denominator) * 100).toFixed(1).replace('.', ',') : '0,0';
+  return `${count.toLocaleString('es-CO')} (${pct} %) `;
 }
