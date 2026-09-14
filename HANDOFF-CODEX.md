@@ -790,3 +790,186 @@ FALLA  El 401 lo pone Vercel, no la app.
 
 Abrir el panel desde un teléfono, fuera de la red del portátil. El script comprueba que la puerta
 está abierta; solo una persona comprueba que adentro se ve bien.
+
+---
+
+# T12 — Auditoría de filtros: correcciones y datos de curso
+
+Auditoría de Samuel sobre el panel, 2026-09-14. **Antes de tocar nada, lee la sección "Lo que NO
+está roto"**: tres de los problemas reportados no lo son, y corregirlos rompería dato correcto.
+
+---
+
+## 0. Lo que NO está roto — no lo toques
+
+### `aplico_antes_jc` / `fue_beneficiario_antes` están bien
+
+Verificado contra la base para el caso reportado (cédula `1043450120`, Jaime Luis Olivero):
+
+```
+aplico_antes_jc: False · fue_beneficiario_antes: False · seleccionado: True
+```
+
+La sospecha nació de leer la última columna del CSV de exportación. Sus columnas son
+`id_publico, cedula, nombres, apellidos, email, celular, ciudad, convocatoria, seleccionado`,
+así que ese `"true"` final es **`seleccionado`**, que es correcto — sí fue seleccionado.
+
+Distribución global, coherente: 20.343 con ambos en `false`, 982 aplicaron antes sin ser
+beneficiarios, 105 ambas cosas, 54 beneficiarios que no marcaron haber aplicado.
+
+**Acción: ninguna.** Lo que sí hay que arreglar es que el CSV salga con encabezados legibles.
+
+### `retirado` está bien
+
+En la vista ya sale como texto de tres valores, no booleano:
+`no_aplica` 23.371 · `no` 740 · `si` 92. El estudiante del ejemplo sale `no`, que es correcto.
+
+**Acción: ninguna sobre el dato.** El problema real es que la caja del filtro se muestre para
+quien nunca entró al programa — eso lo resuelve §4.
+
+### El promedio de 2026 no falta: no se preguntó
+
+`promedio_academico` está vacío en **toda** la convocatoria 2026 salvo Uruguay. Verificado contra
+los formularios originales: **el formulario 2026 de Colombia, Ecuador y Panamá no incluye la
+pregunta.** En 2025 sí estaba.
+
+No es un fallo de mapeo. Es `no_aplica`, y hoy se muestra como `sin_dato`, que dice algo distinto
+y falso: que la persona no contestó.
+
+**Acción:** sembrar en `campo_no_preguntado` las entradas `2026/CO`, `2026/EC` y `2026/PA` para
+`promedio_academico`, y que la vista los saque como `no_aplica`.
+
+---
+
+## 1. Edad — el rango del filtro es inservible
+
+**Lo que está bien:** 22.384 edades válidas de 24.203 (92,5 %), con una distribución perfectamente
+sensata: 17 años (3.882), 16 (3.533), 18 (2.598), 15 (2.088). Eso es el perfil de JC.
+
+**Lo que está mal:** 220 registros con basura de origen — gente que escribió mal la fecha en el
+formulario. Hay nacimientos en 2026 (99 casos, escribieron la fecha del día), en 2025 (55) y uno
+en 2908. Resultado: `edad` va de **-884 a 2022**, y el slider del filtro es inutilizable.
+
+No es un problema de la migración: el cálculo desde `fecha_nacimiento` es correcto, la basura viene
+del formulario. `edad_valida` ya los marca; lo que falla es que el panel no lo usa.
+
+**Qué hacer:**
+
+- El `min`/`max` del campo `edad` en el dataset se calcula **solo sobre las filas con
+  `edad_valida = true`**. El slider debe ir de 10 a ~80, no de -884 a 2022.
+- Las 220 inválidas entran en la categoría `sin_dato` del filtro, no en el rango numérico.
+- El dato crudo se conserva: no se borra ni se corrige a mano. Son respuestas reales mal escritas.
+
+---
+
+## 2. Etiquetas y unidades
+
+- `promedio_pct` se muestra como **"Promedio escolar"**.
+- **Todas las estadísticas en porcentaje**, además del conteo absoluto: en las donas, en las barras
+  y junto a cada opción de filtro. `1.234 (5,1 %)`.
+- El CSV de exportación sale con encabezados legibles en la primera fila.
+
+---
+
+## 3. Campos técnicos: etiquetarlos o esconderlos
+
+El grupo "Otros campos" vuelca columnas internas con su nombre crudo, y nadie puede saber qué
+significan. Cada una necesita una etiqueta clara, o salir del panel de filtros:
+
+| Campo | Qué es de verdad | Qué hacer |
+|---|---|---|
+| `enrutado_fuera_cobertura` | El formulario lo sacó del flujo por elegir una ciudad sin programa. 1.598 casos | Etiqueta: **"Quedó fuera por ciudad sin programa"** |
+| `edad_valida` | Falso cuando la fecha de nacimiento da una edad imposible (fuera de 10–80). 220 casos | **Esconder del panel.** Es control de calidad interno |
+| `edad_estado` | `valor` o `sin_dato`. Redundante con el filtro de edad, que ya ofrece "Sin dato" | **Esconder** |
+| `promedio_escala` | La escala del promedio: 100 en CO/EC, **12 en Uruguay** | **Esconder**, pero mostrarla junto al valor en la ficha |
+| `promedio_estado` | `valor` / `sin_dato` / `no_aplica` del promedio | **Esconder** |
+| `nucleo_estado`, `indice_activos_estado` | Lo mismo para esos dos campos | **Esconder** |
+| `nucleo_es_tope` | La persona respondió **"7 o más"**: el 7 es un tope, no un valor exacto | **Esconder**, pero que el filtro muestre "7 o más" en vez de "7" |
+| `estrato_cat` | El estrato como categoría, con `no_aplica` para los 4.780 de fuera de Colombia | Es el que debe usar el filtro de estrato |
+| `duplicado_de` | La misma persona envió el formulario dos veces; esta fila apunta a la que lleva la marca de seleccionada. 6 casos | Etiqueta: **"Envío duplicado"**, como sí/no |
+
+**Regla:** si un campo existe para que el dato sea honesto pero no es una pregunta que alguien
+quiera hacerse, no va en el panel de filtros.
+
+### `indice_activos`, que Samuel preguntó qué es
+
+Índice de 0 a 100 **construido por nosotros**, no una pregunta del formulario. Dos mitades de 50:
+
+- **Elementos del hogar**, ponderados por valor: Nevera 1 · Estufa 1 · TV 1 · Lavadora 1,5 ·
+  Horno 1,5 · Equipo de sonido 1 · Bicicleta 1 · Moto 2 · Carro 3
+- **Servicios**: Energía, Agua, Gas, Alcantarillado, Recolección de basuras y Acceso pavimentado
+  suman 1 cada uno; **Acceso no pavimentado resta 0,5**, porque es lo contrario de un activo
+
+Es `no_aplica` en Uruguay 2025, cuyo formulario no preguntaba ni elementos ni servicios.
+
+**Qué hacer:** que el panel explique esto en un tooltip sobre el campo. Un índice inventado por
+nosotros que nadie puede auditar no sirve para decidir nada.
+
+---
+
+## 4. Esconder lo que está en cero
+
+Dos niveles, y los dos se piden:
+
+1. **Opciones en cero:** tras aplicar filtros, una opción cuyo conteo es 0 **no se muestra**.
+2. **Cajas enteras:** si ningún valor de un campo tiene datos en el subconjunto vigente, la
+   tarjeta del filtro **no se muestra**.
+
+Caso que lo motiva: al mirar a quienes no quedaron seleccionados, las cajas de avance y cursos no
+tienen nada que decir y solo estorban.
+
+**Cuidado con esto:** `contarFacetas()` calcula sobre el universo filtrado por los *demás* filtros,
+no por el propio. Así que una opción del **propio** campo nunca da 0 por estar deseleccionada.
+Escóndelas por el conteo de faceta, **no** por el conteo del subconjunto final, o desaparecerán
+opciones que el usuario necesita para ampliar su selección.
+
+Y deja siempre una salida: si una caja se esconde, que siga accesible desde los chips de filtros
+activos, o el usuario no podrá quitar un filtro que ya puso.
+
+---
+
+## 5. Datos de curso para los dos cánones
+
+Hoy `pct_avance`, `cursos_inscritos` y `cursos_aprobados` están **vacíos: 0 de 832**. Los tres
+filtros existen y no tienen un solo dato.
+
+**Objetivo:** llenarlos para los matriculados de **2025 y 2026**, de modo que el panel pueda
+responder no solo quién entró sino cómo le fue.
+
+### Fuente
+
+`panel-datos-rofe` (`PANEL_SUPABASE_*`, solo lectura): `aprobacion_cursos`, `participants`,
+`cohorte_2026_ceds`, y las vistas de avance. El puente a cédula es `cohorte_2026_ceds` —
+**`participants` no tiene columna `cedula`**.
+
+### Cambios en la base
+
+- Ampliar `resultado_programa` si hace falta: `cursos_inscritos`, `cursos_aprobados`, `pct_avance`
+  ya existen; añadir `cohorte` para distinguir 2025 de 2026.
+- Migración `005`, idempotente como las anteriores.
+- Extender `cruzar_canon.py`, o un script nuevo, para traer el avance.
+
+### Regla de honestidad
+
+Para quien **no** entró al programa, estos campos son `no_aplica`, nunca 0. Un 0 en "cursos
+aprobados" dice "entró y no aprobó ninguno", que de 23.371 personas es falso.
+
+### Aceptación
+
+- [ ] `pct_avance` y `cursos_aprobados` poblados para los matriculados de ambos cánones
+- [ ] `no_aplica` para el resto, nunca 0
+- [ ] Los tres filtros solo aparecen cuando hay matriculados en el subconjunto (§4)
+- [ ] Un test nuevo en la suite: la suma de matriculados con avance == total de matriculados del canon
+
+---
+
+## 6. Aceptación de T12
+
+- [ ] Slider de edad entre 10 y 80, no -884 a 2022
+- [ ] Promedio etiquetado "Promedio escolar", y `no_aplica` en 2026 CO/EC/PA
+- [ ] Porcentaje junto a cada conteo, en filtros y gráficos
+- [ ] Campos técnicos etiquetados o escondidos según la tabla de §3
+- [ ] Tooltip que explique el índice de activos
+- [ ] Opciones en 0 escondidas; cajas sin datos escondidas; los chips siguen permitiendo quitar filtros
+- [ ] Datos de curso cargados para 2025 y 2026, con `no_aplica` para el resto
+- [ ] `npm run build` en verde y la suite de integridad completa
