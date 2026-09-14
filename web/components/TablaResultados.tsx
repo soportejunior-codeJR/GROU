@@ -1,5 +1,54 @@
 import type { Dataset } from '@/lib/dataset';
 
-export default function TablaResultados({ ds, indices }: { ds: Dataset; indices: Int32Array }) { const visible = Array.from(indices).slice(0, 100); return <section><div className="tablehead"><h2>Postulaciones</h2><span className="muted">Mostrando {visible.length} de {indices.length.toLocaleString('es-CO')}</span></div><div className="tablewrap"><table><thead><tr><th>ID</th><th>Conv.</th><th>País</th><th>Ciudad</th><th>Edad</th><th>Seleccionada</th><th>Duplicado</th></tr></thead><tbody>{visible.map((i) => <tr key={i}><td>{valueAt(ds, 'id_publico', i)}</td><td>{valueAt(ds, 'convocatoria', i)}</td><td>{valueAt(ds, 'pais', i)}</td><td>{valueAt(ds, 'ciudad', i)}</td><td>{valueAt(ds, 'edad', i) ?? '—'}</td><td>{valueAt(ds, 'seleccionado', i) ? 'Sí' : 'No'}</td><td>{valueAt(ds, 'duplicado_de', i) ?? '—'}</td></tr>)}</tbody></table></div></section>; }
+export default function TablaResultados({ ds, indices }: { ds: Dataset; indices: Int32Array }) {
+  const visible = Array.from(indices).slice(0, 100);
+  return (
+    <section>
+      <div className="tablehead">
+        <h2>Postulaciones</h2>
+        <span className="muted">
+          Mostrando {visible.length} de {indices.length.toLocaleString('es-CO')}
+        </span>
+      </div>
+      <div className="tablewrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Conv.</th>
+              <th>País</th>
+              <th>Ciudad</th>
+              <th>Edad</th>
+              <th>Seleccionada</th>
+              <th>Duplicado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map((i) => (
+              <tr key={i}>
+                <td>{valueAt(ds, 'id_publico', i)}</td>
+                <td>{valueAt(ds, 'convocatoria', i)}</td>
+                <td>{valueAt(ds, 'pais', i)}</td>
+                <td>{valueAt(ds, 'ciudad', i)}</td>
+                <td>{valueAt(ds, 'edad', i) ?? '—'}</td>
+                <td>{valueAt(ds, 'seleccionado', i) ? 'Sí' : 'No'}</td>
+                <td>{valueAt(ds, 'duplicado_de', i) ?? '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
 
-function valueAt(ds: Dataset, c: string, i: number): string | number | boolean | null { if (c === 'id_publico') return i + 1; const d = ds.campos[c]; const v = ds.columnas[c]?.[i]; if (v === null || v === undefined) return null; if (d?.tipo === 'cat') return d.valores?.[v as number] ?? null; if (d?.tipo === 'multi') return (v as number[]).map((x) => d.valores?.[x]).join(' · '); if (d?.tipo === 'bool') return v === 1; return v as number; }
+function valueAt(ds: Dataset, c: string, i: number): string | number | boolean | null {
+  if (c === 'id_publico') return i + 1;
+  const d = ds.campos[c];
+  const v = ds.columnas[c]?.[i];
+  if (v === null || v === undefined) return null;
+  if (d?.tipo === 'cat') return d.valores?.[v as number] ?? null;
+  if (d?.tipo === 'multi') return (v as number[]).map((x) => d.valores?.[x]).join(' · ');
+  if (d?.tipo === 'bool') return v === 1;
+  return v as number;
+}

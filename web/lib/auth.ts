@@ -27,9 +27,10 @@ let cliente: SupabaseClient | null = null;
  * `next build` entero aunque el panel funcione bien en el navegador.
  */
 export function clienteAuth(): SupabaseClient {
-  if (!cliente) cliente = createClient(URL_BASE, ANON_KEY, {
-    auth: { persistSession: true, autoRefreshToken: true },
-  });
+  if (!cliente)
+    cliente = createClient(URL_BASE, ANON_KEY, {
+      auth: { persistSession: true, autoRefreshToken: true },
+    });
   return cliente;
 }
 

@@ -52,8 +52,8 @@ export const NO_APLICA = 'No aplica';
 // ---------------------------------------------------------------------------
 
 export type Filtro =
-  | { tipo: 'cat'; valores: number[] }       // indices seleccionados (OR interno)
-  | { tipo: 'multi'; valores: number[] }     // coincide si comparte al menos uno
+  | { tipo: 'cat'; valores: number[] } // indices seleccionados (OR interno)
+  | { tipo: 'multi'; valores: number[] } // coincide si comparte al menos uno
   | { tipo: 'num'; min: number; max: number; incluirSinDato: boolean }
   | { tipo: 'bool'; valor: 0 | 1 };
 
@@ -85,12 +85,7 @@ function cumple(ds: Dataset, campo: string, filtro: Filtro, i: number): boolean 
  * facetas: para saber cuanto sumaria cada opcion de un filtro, se cuenta sobre el
  * universo filtrado por todos los DEMAS filtros, no por el propio.
  */
-export function filtrar(
-  ds: Dataset,
-  filtros: Filtros,
-  modo: Modo,
-  omitir?: string,
-): Int32Array {
+export function filtrar(ds: Dataset, filtros: Filtros, modo: Modo, omitir?: string): Int32Array {
   const activos = Object.entries(filtros).filter(([c]) => c !== omitir);
   const salida = new Int32Array(ds.total);
   let n = 0;
@@ -105,8 +100,14 @@ export function filtrar(
     for (const [campo, filtro] of activos) {
       const ok = cumple(ds, campo, filtro, i);
       if (modo === 'TODAS') {
-        if (!ok) { pasa = false; break; }
-      } else if (ok) { pasa = true; break; }
+        if (!ok) {
+          pasa = false;
+          break;
+        }
+      } else if (ok) {
+        pasa = true;
+        break;
+      }
     }
     if (pasa) salida[n++] = i;
   }
@@ -123,12 +124,7 @@ export function filtrar(
  * todas sus posiciones es exactamente el tamano del universo vigente (para 'cat';
  * en 'multi' puede superarlo, porque una persona cuenta en varias categorias).
  */
-export function contarFacetas(
-  ds: Dataset,
-  campo: string,
-  filtros: Filtros,
-  modo: Modo,
-): number[] {
+export function contarFacetas(ds: Dataset, campo: string, filtros: Filtros, modo: Modo): number[] {
   const def = ds.campos[campo];
   const cuenta = new Array<number>(def.valores?.length ?? 2).fill(0);
   const base = filtrar(ds, filtros, modo, campo);
