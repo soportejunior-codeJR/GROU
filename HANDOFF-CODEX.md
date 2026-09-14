@@ -370,43 +370,114 @@ un descarte silencioso. Ninguna de las dos se nota mirando el panel.
 
 ## 11. T8 — la interfaz (`web/app/page.tsx`)
 
-Hoy es un cascarón. Lo que **ya existe y no hay que reescribir**:
+**Reescrito 2026-09-13, con los datos ya cargados.** La vista tiene 52 columnas, 24.203 filas,
+832 con `seleccionado = true` y 6 con `duplicado_de`.
+
+### Paso 0 — datos reales antes de tocar la interfaz
+
+```bash
+cd web && npm run dataset
+```
+
+Hasta ahora el panel servía `postulaciones.ejemplo.json` (300 filas sintéticas). Esto trae las
+24.203 reales. Verifica en el log que diga 24.203 y **no** "se usa ejemplo". Si el archivo pesa más
+de ~3 MB, revisa la codificación columnar antes de seguir: el objetivo era ~1,5 MB.
+
+### Lo que ya existe y NO se reescribe
 
 | Archivo | Qué resuelve |
 |---|---|
-| `web/lib/dataset.ts` | Contrato del formato columnar + `filtrar()` y `contarFacetas()` |
-| `web/lib/auth.ts` + `auth.config.ts` | Login con Google, lista blanca, cliente perezoso |
-| `web/app/api/datos/route.ts` | Valida token y correo del lado del servidor antes de servir |
+| `web/lib/dataset.ts` | Contrato del formato **y** `filtrar()` + `contarFacetas()` |
+| `web/lib/auth.ts` + `auth.config.ts` | Login, lista blanca, cliente perezoso |
+| `web/app/api/datos/route.ts` | Valida sesión y correo antes de servir |
 | `web/scripts/construir-dataset.mjs` | Hornea el dataset en el build |
 
-**El conteo de facetas es el corazón del pedido y se hace mal por defecto.** El número que se
-muestra junto a cada opción de un filtro se calcula sobre el universo filtrado por **todos los demás
-filtros excepto el propio** — para eso existe el parámetro `omitir` de `filtrar()`. Así el usuario ve
-cuánto sumaría cada opción *antes* de marcarla, y una que quedaría en cero se ve en cero en vez de
-desaparecer. Filtrar sobre el universo ya reducido por el propio filtro es otra cosa.
-**Usa `contarFacetas()`, no recuentes a mano.**
+### La cascada — lo único que se hace mal por defecto
 
-Requisitos explícitos del cliente:
+El número junto a cada opción de un filtro se calcula sobre el universo filtrado por **todos los
+demás filtros excepto el propio**. Para eso existe el parámetro `omitir` de `filtrar()`. Así el
+usuario ve cuánto sumaría cada opción *antes* de marcarla, y una que quedaría en cero se muestra en
+cero en vez de desaparecer.
 
-- Dos modos: `TODAS` (cumple todos los filtros) y `AL_MENOS_UNA` (cumple al menos uno)
-- Encabezado permanente: `N de 24.203 postulaciones · M seleccionadas · X %`. El `X %` es **M sobre
-  N**, nunca sobre 832. Todo porcentaje declara su base en pantalla
-- `Sin dato` aparece como opción más en cada filtro, con su conteo, y se puede filtrar por ella
-- Chips de filtros activos, removibles, más un "limpiar todo"
-- Rangos numéricos con slider doble; categóricos con multiselección y buscador
-- **URL sincronizada con los filtros**, para compartir un hallazgo pegando el enlace
-- Exportar el subconjunto filtrado a CSV, **sin PII**, con `id_publico` como identificador
+Filtrar sobre el universo ya reducido por el propio filtro es "filtros encadenados" y es otra cosa.
+**Usa `contarFacetas()`. No recuentes a mano.**
 
-Tres vistas: **Explorador** (filtros + conteo + tabla), **Distribuciones** (histogramas,
-seleccionados vs. no seleccionados lado a lado — es lo que responde "identificar patrones") y
-**Embudo** (postularon → matriculados por ciudad, con los estados faltantes marcados como "sin
-fuente"; **no dibujes un embudo completo que insinúe datos que no tenemos**).
+Dos modos, ambos pedidos explícitamente: `TODAS` (cumple todos los filtros activos) y
+`AL_MENOS_UNA` (cumple al menos uno).
 
-Estilo visual: mínimo funcional. Se define después de la beta.
+### Reglas de conteo
 
-**Gotcha ya pagado:** no crees el cliente de Supabase al cargar el módulo. `createClient` lanza
-`supabaseUrl is required` con variables vacías, y en el prerender del build lo están — tumba
-`next build` entero. Va perezoso, como en `clienteAuth()`.
+- Encabezado permanente: `N de 24.203 postulaciones · M seleccionadas · X %`.
+  **`X` es `M/N`, jamás sobre 832.** Todo porcentaje declara su base en pantalla.
+- `Sin dato` es una opción visible en cada filtro, con su conteo, y filtrable. No se esconde ni se
+  agrupa. En varios campos "no contestó" es en sí mismo un patrón que el cliente va a querer mirar.
+- Para los numéricos usa las columnas compañeras que ya existen — `edad_estado`,
+  `promedio_estado`, `estrato_cat`, `nucleo_estado`, `indice_activos_estado` — que son las que
+  distinguen `sin_dato` de `no_aplica`. Un `integer` no puede llevar la categoría; la lleva su
+  compañera.
+- Las **6 filas con `duplicado_de`** cuentan en las 24.203: son postulaciones reales. Solo no
+  llevan la bandera de seleccionado. Muéstralas con una marca discreta en la tabla. Un interruptor
+  "ocultar envíos duplicados" es bienvenido pero opcional.
+
+### Filtros a exponer
+
+**Identidad y origen:** `convocatoria` · `pais` · `ciudad` · `fecha_envio` (rango)
+**Perfil:** `edad` · `genero` · `situacion_educativa` · `promedio_pct` · `segmentos` (multi)
+**Situación:** `ocupaciones` (multi) · `condicion_laboral` · `emprendimiento` · `otros_programas`
+**Socioeconómico:** `estrato` · `ingreso_hogar` · `personas_nucleo` · `tipo_vivienda` ·
+`indice_activos`
+**Capacidad:** `tiene_internet` · `acceso_computador` · `horas_semanales` · `comodidad_autonomo` ·
+`nivel_ingles` · `nivel_software`
+**Origen del contacto:** `como_se_entero` (multi) · `tiene_embajador`
+**Resultado:** `seleccionado` · `fase_max_alcanzada` · `retirado` · `pct_avance` ·
+`cursos_aprobados` · `estado_final` · `aplico_antes_jc` · `fue_beneficiario_antes`
+**Calidad del dato:** `enrutado_fuera_cobertura` · `edad_valida`
+
+### Las tres vistas, en orden de prioridad
+
+**1. Explorador — completo, sin recortes.** Panel de filtros con conteo por faceta, encabezado con
+el total vivo, chips de filtros activos removibles, "limpiar todo", tabla paginada del subconjunto.
+Rangos numéricos con slider doble; categóricos con multiselección y buscador. **Es el pedido
+literal del cliente: media cascada no sirve para nada.**
+
+**2. Distribuciones — versión mínima aceptable.** Un histograma por campo filtrado, con
+**seleccionados y no seleccionados lado a lado**. Eso es lo que responde "identificar patrones",
+que es el caso de uso que el cliente escribió.
+
+**3. Embudo — el primero que se sacrifica si falta tiempo.** Postularon → matriculados por ciudad.
+Los estados intermedios van marcados como "sin fuente". **No dibujes un embudo completo que insinúe
+datos que no tenemos** (§13).
+
+### Transversal
+
+- **URL sincronizada con los filtros**, para compartir un hallazgo pegando el enlace.
+- **Exportar el subconjunto a CSV**, sin PII, con `id_publico` como identificador.
+
+### Estilo
+
+Mínimo funcional. El cliente decidió definir el estilo visual **después** de ver la beta, sobre
+algo que ya funciona. No inviertas tiempo ahí todavía.
+
+### Gotchas ya pagados
+
+- **No crees el cliente de Supabase al cargar el módulo.** `createClient` lanza
+  `supabaseUrl is required` con variables vacías, y en el prerender del build lo están: tumba
+  `next build` entero. Va perezoso, como `clienteAuth()`.
+- **Nada de PII.** La vista ya no la expone. Si aparece un nombre o un correo en el panel, el error
+  está en la vista y se corrige allá, no filtrando en la interfaz.
+- Vercel despliega con **Root Directory = `web`** y Framework Preset **Next.js**. Ya está
+  configurado; si un deploy sale en 2 segundos o pide un directorio `public`, alguien lo movió.
+
+### Aceptación
+
+- `npm run build` en verde y el deploy sirviendo las 24.203 reales, no el ejemplo
+- Encabezado mostrando `24.203 · 832 · 3,4 %` sin filtros activos
+- Marcar un filtro cambia los conteos de **todos los demás** y no los del propio
+- Cambiar de `TODAS` a `AL_MENOS_UNA` sube el conteo (o lo deja igual), nunca lo baja
+- Para cualquier campo categórico, la suma de sus facetas == total vigente
+- El caso de uso del cliente se puede reproducir de punta a punta: *18 años + con emprendimiento +
+  ingreso del hogar en un rango + estrato 3 + cómodos con aprendizaje autónomo + no seleccionados*
+- El enlace copiado reproduce los mismos filtros en otra pestaña
 
 ---
 
