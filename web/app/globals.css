@@ -15,6 +15,10 @@
   --ink-3: #6b7280;
   --chart-selected: #406C9E;
   --chart-rest: #a8adb4;
+  --semantic-success: #6EA050;
+  --semantic-warning: #EEC935;
+  --semantic-danger: #C12D4C;
+  --semantic-neutral: #a8adb4;
   --warning: #8e3431;
 }
 
@@ -58,8 +62,17 @@ body { font-variant-numeric: tabular-nums; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; padding: 18px 0; }
 section { margin-top: 26px; }
 section h2 { font-size: 18px; border-bottom: 1px solid var(--rule); padding-bottom: 8px; }
+.filter-group h2 { border-left: 5px solid var(--group-color); padding-left: 10px; }
+.group-blue { --group-color: #406C9E; }
+.group-sky { --group-color: #83B6DD; }
+.group-yellow { --group-color: #EEC935; }
+.group-orange { --group-color: #D1793F; }
+.group-green { --group-color: #6EA050; }
+.group-secondary-blue { --group-color: #6FA0BC; }
+.group-red { --group-color: #C12D4C; }
 .filtergrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
 .filter-card { border: 1px solid var(--rule); border-radius: 5px; padding: 10px 12px; min-width: 0; background: var(--surface); min-height: 92px; }
+.filter-card, .report-chart { background: color-mix(in srgb, var(--surface) 75%, transparent); backdrop-filter: blur(12px); box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 8%, transparent); }
 .filter-card { perspective: 800px; transition: transform 250ms ease; }
 .filter-card-chart { transform: rotateY(180deg); }
 .filter-card-chart > * { transform: rotateY(180deg); }
@@ -119,9 +132,18 @@ th { background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
 .report-chart { min-width: 0; border: 1px solid var(--rule); border-radius: 5px; padding: 12px; background: var(--surface); break-inside: avoid; }
 .report-chart h3 { font-size: 14px; margin: 0 0 8px; }
 .print-url { color: var(--ink-3); font-size: 10px; overflow-wrap: anywhere; }
+.login-panel { position: relative; isolation: isolate; overflow: hidden; margin: 24px -20px -40px; padding: 100px 20px 120px; background: linear-gradient(135deg, #16283D, #2B4A6F 55%, #406C9E); border-radius: 10px; }
+.login-content { position: relative; z-index: 1; max-width: 520px; padding: 28px; color: #fff; background: rgb(22 40 61 / 72%); border: 1px solid rgb(255 255 255 / 25%); border-radius: 10px; backdrop-filter: blur(8px); animation: login-enter .6s cubic-bezier(.22,1,.36,1) both; }
+.login-content .muted { color: rgb(255 255 255 / 85%); }
+.login-hero { position: absolute; inset: 0; z-index: -1; overflow: hidden; }
+.hero-particle { position: absolute; border-radius: 50%; opacity: .75; animation: particle-drift 9s ease-in-out infinite alternate; }
+@keyframes particle-drift { from { transform: translate3d(-8px, 10px, 0); } to { transform: translate3d(12px, -16px, 0); } }
+@keyframes login-enter { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
 @media (max-width: 700px) { .topline { align-items: start; flex-direction: column; } .export-actions { justify-content: flex-start; } .shell { padding: 26px 12px 60px; } }
 @media (max-width: 420px) { .shell { padding-left: 8px; padding-right: 8px; } .filtergrid { grid-template-columns: 1fr; } .topline { margin: 0 -8px; padding-left: 8px; padding-right: 8px; } .topline h1 { font-size: 25px; } .export-actions, .export-actions .button { width: 100%; } .bar-row { grid-template-columns: 1fr 1.3fr auto; } }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+}
 @media print {
   @page { margin: 16mm 14mm 18mm; }
   html, body { background: #fff !important; color: #111 !important; }
@@ -132,7 +154,8 @@ th { background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
   .report-header { color: #111; }
   .report-header .muted, .print-url { color: #333 !important; }
   .report-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  .report-chart { background: #fff !important; color: #111 !important; border-color: #bbb; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .report-chart { background: #fff !important; color: #111 !important; border-color: #bbb; box-shadow: none !important; backdrop-filter: none !important; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .report-chart .chart, .report-chart svg, .report-chart span { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .print-url { position: fixed; bottom: -10mm; left: 0; right: 0; }
+  .login-hero, .hero-particle { display: none !important; }
 }

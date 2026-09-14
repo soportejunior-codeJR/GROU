@@ -1,5 +1,7 @@
 'use client';
 
+import type { CSSProperties } from 'react';
+
 import { useMemo } from 'react';
 import { contarFacetas, filtrar, type Dataset, type Filtros, type Modo } from '@/lib/dataset';
 
@@ -24,9 +26,9 @@ export default function GraficoFaceta({ ds, campo, filtros, modo }: Props) {
     .filter((item) => item.count > 0 || selected.includes(item.index));
   const chart =
     def.tipo === 'multi' || visible.length > 6 ? (
-      <Barras items={visible} selected={selected} denominator={denominator} />
+      <Barras items={visible} selected={selected} denominator={denominator} campo={campo} />
     ) : (
-      <Dona items={visible} selected={selected} denominator={denominator} />
+      <Dona items={visible} selected={selected} denominator={denominator} campo={campo} />
     );
   return (
     <div className="chart">
@@ -40,10 +42,12 @@ function Dona({
   items,
   selected,
   denominator,
+  campo,
 }: {
   items: Item[];
   selected: number[];
   denominator: number;
+  campo: string;
 }) {
   const total = items.reduce((sum, item) => sum + item.count, 0);
   let offset = 0;
@@ -66,6 +70,7 @@ function Dona({
                 pathLength="100"
                 strokeDasharray={`${dash} ${100 - dash}`}
                 strokeDashoffset={-current}
+                style={semanticStyle(campo, item.label, 'stroke')}
               />
             );
           })}
@@ -82,6 +87,7 @@ function Dona({
           <span
             key={item.index}
             className={selected.includes(item.index) ? 'chart-label-selected' : ''}
+            style={semanticStyle(campo, item.label, 'label')}
           >
             {item.label}: {formatCount(item.count, denominator)}
           </span>
@@ -95,10 +101,12 @@ function Barras({
   items,
   selected,
   denominator,
+  campo,
 }: {
   items: Item[];
   selected: number[];
   denominator: number;
+  campo: string;
 }) {
   const sorted = [...items].sort((a, b) => b.count - a.count);
   const shown =
@@ -124,7 +132,10 @@ function Barras({
           <span className="bar-label">{item.label}</span>
           <span
             className={selected.includes(item.index) ? 'bar-selected' : 'bar-rest'}
-            style={{ width: `${(item.count / max) * 100}%` }}
+            style={{
+              width: `${(item.count / max) * 100}%`,
+              ...semanticStyle(campo, item.label, 'fill'),
+            }}
           />
           <strong>{formatCount(item.count, denominator)}</strong>
         </div>
@@ -166,6 +177,40 @@ function Histograma({ ds, campo, filtros, modo, denominator }: Props & { denomin
 
 function selectedValues(filter: Filtros[string] | undefined) {
   return filter && (filter.tipo === 'cat' || filter.tipo === 'multi') ? filter.valores : [];
+}
+
+function semanticStyle(
+  campo: string,
+  label: string,
+  target: 'label' | 'stroke' | 'fill',
+): CSSProperties {
+  const value = label
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+  let color: string | undefined;
+  if (campo === 'seleccionado')
+    color = value === 'si' ? 'var(--semantic-success)' : 'var(--semantic-neutral)';
+  if (campo === 'retirado') {
+    color =
+      value === 'si'
+        ? 'var(--semantic-danger)'
+        : value === 'no'
+          ? 'var(--semantic-success)'
+          : 'var(--semantic-neutral)';
+  }
+  if (campo === 'enrutado_fuera_cobertura') {
+    color = value === 'si' ? 'var(--semantic-warning)' : 'var(--semantic-neutral)';
+  }
+  if (campo === 'estado_final' || campo === 'fase_max_alcanzada') {
+    if (value.includes('complet') || value.includes('seleccion')) color = 'var(--semantic-success)';
+    else if (value.includes('curso')) color = 'var(--semantic-warning)';
+    else if (value.includes('retir') || value.includes('iniciar')) color = 'var(--semantic-danger)';
+  }
+  if (!color) return {};
+  if (target === 'stroke') return { stroke: color };
+  if (target === 'fill') return { backgroundColor: color };
+  return { color };
 }
 
 function formatCount(count: number, denominator: number) {

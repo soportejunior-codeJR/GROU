@@ -14,19 +14,33 @@ import FiltroCard from '@/components/FiltroCard';
 import Encabezado from '@/components/Encabezado';
 import TablaResultados from '@/components/TablaResultados';
 import Informe from '@/components/Informe';
+import HeroParticulas from '@/components/HeroParticulas';
 import { encodeFilter, parseUrl } from '@/lib/urlFiltros';
 
 const GROUPS = [
-  ['Identidad y origen', ['convocatoria', 'pais', 'ciudad', 'fecha_envio']],
-  ['Perfil', ['edad', 'genero', 'situacion_educativa', 'promedio_pct', 'segmentos']],
-  ['Situación', ['ocupaciones', 'condicion_laboral', 'emprendimiento', 'otros_programas']],
-  [
-    'Socioeconómico',
-    ['estrato_cat', 'ingreso_hogar', 'personas_nucleo', 'tipo_vivienda', 'indice_activos'],
-  ],
-  [
-    'Capacidad',
-    [
+  {
+    name: 'Identidad y origen',
+    fields: ['convocatoria', 'pais', 'ciudad', 'fecha_envio'],
+    color: 'blue',
+  },
+  {
+    name: 'Perfil',
+    fields: ['edad', 'genero', 'situacion_educativa', 'promedio_pct', 'segmentos'],
+    color: 'sky',
+  },
+  {
+    name: 'Situación',
+    fields: ['ocupaciones', 'condicion_laboral', 'emprendimiento', 'otros_programas'],
+    color: 'yellow',
+  },
+  {
+    name: 'Socioeconómico',
+    fields: ['estrato_cat', 'ingreso_hogar', 'personas_nucleo', 'tipo_vivienda', 'indice_activos'],
+    color: 'orange',
+  },
+  {
+    name: 'Capacidad',
+    fields: [
       'tiene_internet',
       'acceso_computador',
       'horas_semanales',
@@ -34,8 +48,24 @@ const GROUPS = [
       'nivel_ingles',
       'nivel_software',
     ],
-  ],
-  ['Origen del contacto', ['como_se_entero', 'tiene_embajador']],
+    color: 'green',
+  },
+  {
+    name: 'Origen del contacto',
+    fields: ['como_se_entero', 'tiene_embajador'],
+    color: 'secondary-blue',
+  },
+  {
+    name: 'Resultado',
+    fields: [
+      'seleccionado',
+      'retirado',
+      'estado_final',
+      'fase_max_alcanzada',
+      'enrutado_fuera_cobertura',
+    ],
+    color: 'red',
+  },
 ] as const;
 
 const CAMPOS_TECNICOS_OCULTOS = new Set([
@@ -119,12 +149,17 @@ export default function Pagina() {
   if (!correo)
     return (
       <Marco>
-        <p className="muted">
-          Este panel contiene datos personales y está limitado a cuentas autorizadas.
-        </p>
-        <button onClick={iniciarSesionGoogle} className="button button-primary">
-          Entrar con Google
-        </button>
+        <div className="login-panel">
+          <HeroParticulas />
+          <div className="login-content">
+            <p className="muted">
+              Este panel contiene datos personales y está limitado a cuentas autorizadas.
+            </p>
+            <button onClick={iniciarSesionGoogle} className="button button-primary">
+              Entrar con Google
+            </button>
+          </div>
+        </div>
       </Marco>
     );
   if (!correoPermitido(correo))
@@ -236,7 +271,7 @@ function Explorador({ ds }: { ds: Dataset }) {
     a.click();
     URL.revokeObjectURL(a.href);
   };
-  const used: Set<string> = new Set(GROUPS.flatMap(([, fields]) => fields));
+  const used: Set<string> = new Set(GROUPS.flatMap((group) => group.fields));
   const extra = Object.keys(ds.campos).filter(
     (c) => !used.has(c) && c !== 'id_publico' && !CAMPOS_TECNICOS_OCULTOS.has(c),
   );
@@ -277,11 +312,11 @@ function Explorador({ ds }: { ds: Dataset }) {
         <span className="muted">{Object.keys(filtros).length} filtros activos</span>
       </div>
       <div className="panel-controls">
-        {GROUPS.map(([name, fields]) => (
-          <section key={name}>
-            <h2>{name}</h2>
+        {GROUPS.map((group) => (
+          <section key={group.name} className={`filter-group group-${group.color}`}>
+            <h2>{group.name}</h2>
             <div className="filtergrid">
-              {fields
+              {group.fields
                 .filter((c) => ds.campos[c])
                 .map((c) => (
                   <FiltroCard
