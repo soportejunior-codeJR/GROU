@@ -1406,3 +1406,105 @@ CVD. Queda como excepción documentada, no como descuido. **No la reabras.**
 - [ ] Claro y oscuro verificados en ambos
 - [ ] El informe imprimible de T13 sigue saliendo en fondo blanco y sin efectos
 - [ ] Ningún efecto queda detrás de un gráfico o de texto pequeño
+
+---
+
+# T16 — Fondo animado en todo el panel y paleta de marca apagada
+
+Sustituye partes de T15. Léelo antes que aquella sección.
+
+## Corrección a T15: me pasé de restrictivo
+
+T15 decía que los fondos animados no van sobre contenido de datos. **Eso es cierto solo para las
+partículas.** Releyendo `BRAND-DIGITAL.md`:
+
+- **4.2 Trazos de fondo (`BackgroundPaths`)**: *"Curvas SVG en azul de marca fluyendo tras el
+  contenido (fixed, -z-10, opacidad total ≤ 0.6). **Uso: fondo de secciones de datos.**"*
+- **4.4 Tarjetas glass**: *"Contenedor estándar de KPIs, gráficos y selectores **sobre los fondos
+  animados**."*
+
+O sea que el Panel de Datos ya hace exactamente lo que se pide, y está sancionado por el manual.
+La restricción real es más fina: *"Jamás detrás de texto pequeño con opacidad alta"* — que se
+resuelve con las tarjetas glass encima, no quitando el fondo.
+
+## 1. Fondo animado en todo el panel
+
+`BackgroundPaths` como fondo de la aplicación entera, no solo del acceso:
+
+- `position: fixed`, `z-index: -10`, opacidad total **≤ 0,6**
+- Curvas en azul de marca `#406C9E`
+- **Todo el contenido va sobre tarjetas glass.** Nada de texto ni gráficos directamente sobre el
+  fondo animado: esa es la regla que sí hay que respetar
+- Ciclos largos, 20 s o más — presencia, no distracción
+- `prefers-reduced-motion` → trazos estáticos
+
+Las **partículas se quedan solo en el acceso**. Sobre la rejilla de trabajo serían ruido, y ahí el
+manual sí es tajante.
+
+## 2. Paleta de los gráficos — validada
+
+Lo que pide el cliente: el resto en colores de ROFÉ apagados, y el seleccionado en azul brillante
+que de verdad resalte. Funciona, y lo comprobé con el validador contra **las seis** variantes.
+
+### Claro — seleccionado `#1F6FEB`
+
+| Color de marca | Apagado | Separación |
+|---|---|---:|
+| Amarillo `#EEC935` | `#B9B08D` | 31,2 |
+| Naranja `#D1793F` | `#AA9587` | 25,9 |
+| Rojo `#C12D4C` | `#9A7079` | 22,4 |
+| Verde `#6EA050` | `#84927B` | 23,8 |
+| Azul sec. 2 `#83B6DD` | `#BCC6CE` | 31,5 |
+| Azul sec. 1 `#6FA0BC` | `#9EAAB0` | 24,8 |
+
+**Peor caso 22,4**, muy por encima del piso de 15.
+
+### Oscuro — seleccionado `#7FC0FF`
+
+| Color de marca | Apagado | Separación |
+|---|---|---:|
+| Amarillo | `#867F63` | 24,5 |
+| Naranja | `#796A61` | 28,7 |
+| Rojo | `#6A5559` | 34,1 |
+| Verde | `#5F665A` | 31,3 |
+| Azul sec. 2 | `#818E99` | 17,4 |
+| Azul sec. 1 | `#707A7F` | 23,7 |
+
+**Peor caso 17,4.**
+
+### Por qué azul brillante y no el de marca
+
+Probé `#406C9E` con estos mismos apagados y **falla**: contra el rojo apagado queda en 14,2, bajo
+el piso. El azul de marca es demasiado suave para destacar entre colores, aunque estén apagados.
+La intuición del cliente era correcta: hace falta un azul más brillante.
+
+Esto **reemplaza** la pareja fijada en T14 (`#406C9E` / `#a8adb4`), que servía para
+resaltado-contra-gris-liso. Con colores apagados de fondo, el problema cambia y la solución también.
+
+### Cómo se reparten los colores apagados
+
+Rotan en orden fijo por posición de la porción, **nunca al azar y nunca por el valor**. Así el
+mismo gráfico se ve igual cada vez que se abre. Son decoración que da variedad, **no codifican
+nada** — y por eso deben verse claramente apagados: si alguien cree que el naranja significa algo,
+el gráfico está mintiendo.
+
+## 3. Lo que NO cambia: el color semántico de T15
+
+Los campos con estado propio —`seleccionado`, `retirado`, `estado_final`, `fase_max_alcanzada`—
+**siguen usando color pleno con significado**: verde `#6EA050`, amarillo `#EEC935`, rojo
+`#C12D4C`. Ahí el color sí codifica, y va a plena saturación para que se distinga de la decoración.
+
+**La diferencia visual entre ambos casos tiene que ser evidente:** colores vivos = significan algo;
+colores apagados = solo dan variedad.
+
+## Aceptación de T16
+
+- [ ] `BackgroundPaths` de fondo en todo el panel, opacidad ≤ 0,6, `z-index: -10`
+- [ ] Todo el contenido sobre tarjetas glass; nada de texto o gráficos directamente sobre el fondo
+- [ ] Partículas solo en el acceso
+- [ ] Gráficos: seleccionado `#1F6FEB` en claro, `#7FC0FF` en oscuro
+- [ ] Resto en las seis variantes apagadas de las tablas, rotando por posición fija
+- [ ] Los campos con color semántico conservan su color pleno de T15
+- [ ] `prefers-reduced-motion` respetado
+- [ ] El informe imprimible de T13 sigue en fondo blanco, sin fondo animado
+- [ ] Claro y oscuro verificados en ambos
