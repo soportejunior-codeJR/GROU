@@ -56,7 +56,7 @@ function Dona({
       <svg className="donut" viewBox="0 0 42 42" role="img" aria-label="Distribución de facetas">
         <circle className="donut-track" cx="21" cy="21" r="15.9" />
         <g transform="rotate(-90 21 21)">
-          {items.map((item) => {
+          {items.map((item, position) => {
             const dash = total ? (item.count / total) * 100 : 0;
             const current = offset;
             offset += dash;
@@ -70,7 +70,14 @@ function Dona({
                 pathLength="100"
                 strokeDasharray={`${dash} ${100 - dash}`}
                 strokeDashoffset={-current}
-                style={semanticStyle(campo, item.label, 'stroke')}
+                style={itemStyle(
+                  campo,
+                  item.label,
+                  item.index,
+                  position,
+                  selected.includes(item.index),
+                  'stroke',
+                )}
               />
             );
           })}
@@ -83,11 +90,18 @@ function Dona({
         </text>
       </svg>
       <div className="chart-labels">
-        {items.map((item) => (
+        {items.map((item, position) => (
           <span
             key={item.index}
             className={selected.includes(item.index) ? 'chart-label-selected' : ''}
-            style={semanticStyle(campo, item.label, 'label')}
+            style={itemStyle(
+              campo,
+              item.label,
+              item.index,
+              position,
+              selected.includes(item.index),
+              'label',
+            )}
           >
             {item.label}: {formatCount(item.count, denominator)}
           </span>
@@ -123,7 +137,7 @@ function Barras({
   const max = Math.max(...shown.map((item) => item.count), 1);
   return (
     <div className="bars">
-      {shown.map((item) => (
+      {shown.map((item, position) => (
         <div
           className="bar-row"
           key={item.index}
@@ -134,7 +148,14 @@ function Barras({
             className={selected.includes(item.index) ? 'bar-selected' : 'bar-rest'}
             style={{
               width: `${(item.count / max) * 100}%`,
-              ...semanticStyle(campo, item.label, 'fill'),
+              ...itemStyle(
+                campo,
+                item.label,
+                item.index,
+                position,
+                selected.includes(item.index),
+                'fill',
+              ),
             }}
           />
           <strong>{formatCount(item.count, denominator)}</strong>
@@ -166,7 +187,12 @@ function Histograma({ ds, campo, filtros, modo, denominator }: Props & { denomin
       <div className="histogram-bars">
         {bins.map((bin) => (
           <div className="histogram-bin" key={bin.index} title={`${bin.label}: ${bin.count}`}>
-            <span style={{ height: `${(bin.count / maxCount) * 100}%` }} />
+            <span
+              style={{
+                height: `${(bin.count / maxCount) * 100}%`,
+                backgroundColor: `var(--chart-muted-${(bin.index % 6) + 1})`,
+              }}
+            />
             <small>{bin.label}</small>
           </div>
         ))}
@@ -208,6 +234,22 @@ function semanticStyle(
     else if (value.includes('retir') || value.includes('iniciar')) color = 'var(--semantic-danger)';
   }
   if (!color) return {};
+  if (target === 'stroke') return { stroke: color };
+  if (target === 'fill') return { backgroundColor: color };
+  return { color };
+}
+
+function itemStyle(
+  campo: string,
+  label: string,
+  index: number,
+  position: number,
+  selected: boolean,
+  target: 'label' | 'stroke' | 'fill',
+): CSSProperties {
+  const semantic = semanticStyle(campo, label, target);
+  if (Object.keys(semantic).length) return semantic;
+  const color = selected ? 'var(--chart-selected)' : `var(--chart-muted-${(position % 6) + 1})`;
   if (target === 'stroke') return { stroke: color };
   if (target === 'fill') return { backgroundColor: color };
   return { color };

@@ -15,6 +15,7 @@ import Encabezado from '@/components/Encabezado';
 import TablaResultados from '@/components/TablaResultados';
 import Informe from '@/components/Informe';
 import HeroParticulas from '@/components/HeroParticulas';
+import BackgroundPaths from '@/components/BackgroundPaths';
 import { encodeFilter, parseUrl } from '@/lib/urlFiltros';
 
 const GROUPS = [
@@ -390,6 +391,7 @@ function csv(v: string | number | boolean | null) {
 function Marco({ children }: { children: React.ReactNode }) {
   return (
     <main className="shell">
+      <BackgroundPaths />
       <p className="eyebrow">Fundación ROFÉ</p>
       <h1>Panel de Convocatoria JC</h1>
       {children}
