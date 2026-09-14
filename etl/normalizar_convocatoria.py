@@ -6,6 +6,7 @@ se agrega a valor_alias y se informa. El payload contiene PII solo en etl/salida
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import re
 import unicodedata
@@ -37,6 +38,13 @@ def normalizar_texto(value: object) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9 ]+", " ", s)).strip()
 
 
+def plegar_ciudad(value: object) -> str:
+    """Clave comparable para texto libre de ciudad, sin alterar el valor crudo."""
+    s = "" if value is None else unicodedata.normalize("NFKC", str(value)).strip().lower()
+    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode("ascii")
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9]+", " ", s)).strip()
+
+
 def clave_pregunta(value: object) -> str:
     return normalizar_texto(value)
 
@@ -65,6 +73,7 @@ def cedula(value: object) -> tuple[str | None, str | None, bool]:
     if not raw:
         return None, raw, True
     # Excel puede representar identificadores como 1201219556.0.
+    raw = re.sub(r"\.0$", "", raw)
     digits = re.sub(r"\D", "", raw)
     normalized = digits.lstrip("0") or None
     return normalized, raw, normalized is None
@@ -81,7 +90,8 @@ def fecha(value: str | None) -> str | None:
     text = value.strip().replace(".0", "")
     for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y"):
         try:
-            return datetime.strptime(text[:19], fmt).date().isoformat()
+            candidate = text[:19] if "%H" in fmt else text.split()[0]
+            return datetime.strptime(candidate, fmt).date().isoformat()
         except ValueError:
             pass
     return None
@@ -101,9 +111,9 @@ def booleano(raw: str | None) -> bool | None:
     if raw is None:
         return None
     v = normalizar_texto(raw)
-    if v in {"si", "s", "true", "1"}:
+    if v.startswith("si") or v in {"s", "true", "1"}:
         return True
-    if v in {"no", "n", "false", "0"}:
+    if v.startswith("no") or v in {"n", "false", "0"}:
         return False
     return None
 
@@ -113,6 +123,12 @@ def dominio(raw: str | None, mapping: dict[str, str], aliases: list, dom: str, s
         return None
     key = normalizar_texto(raw)
     value = mapping.get(key)
+    if value is None:
+        # Las respuestas de Forms incluyen explicaciones largas. Solo aceptamos
+        # una coincidencia explícita de una frase catalogada, nunca una inferencia.
+        candidatos = [v for k, v in mapping.items() if k in key]
+        if len(set(candidatos)) == 1:
+            value = candidatos[0]
     if value is None:
         aliases.append({"dominio": dom, "valor_crudo": raw, "valor_canonico": None,
                         "n_ocurrencias": 1, "revisado": False})
@@ -169,28 +185,98 @@ def normalizar_fila(row: dict, aliases: list, stats: Counter) -> dict:
         except ValueError:
             promedio = None
     escala = 12 if pais == "UY" else 100
+    if promedio is not None and not 0 <= promedio <= escala:
+        # La fuente contiene entradas fuera de la escala declarada (por ejemplo,
+        # 700 en una escala 1--100). No se corrige dividiendo ni se adivina la
+        # intención: queda NULL y se contabiliza para auditoría.
+        stats["promedio:fuera_de_escala"] += 1
+        promedio = None
+    grado_raw = buscar(row, "grado que estas cursando", "grado que cursas", "grado cursando")
+    grado_key = normalizar_texto(grado_raw)
+    situacion = None
+    anio_grado = None
+    if grado_raw:
+        if "bachiller" in grado_key:
+            situacion = "bachiller"
+        else:
+            m = re.search(r"\b(10|11|[1-6])\b", grado_key)
+            situacion = f"grado_{m.group(1)}" if m else "otro"
+    anio_raw = buscar(row, "anio en el que terminaste", "ano en el que terminaste")
+    if anio_raw:
+        m = re.search(r"\b(19|20)\d{2}\b", anio_raw)
+        anio_grado = int(m.group()) if m else None
+    condicion_raw = buscar(row, "condiciones laborales")
+    condicion_key = normalizar_texto(condicion_raw)
+    condicion = None
+    if condicion_key:
+        tiempo = "completo" if "tiempo completo" in condicion_key else "parcial" if "tiempo parcial" in condicion_key else None
+        formal = "formal" if "contrato formal" in condicion_key else "informal" if "sin contrato" in condicion_key else None
+        condicion = f"{tiempo}_{formal}" if tiempo and formal else None
+    otros = buscar(row, "postulado recientemente a otros programas")
+    otros_key = normalizar_texto(otros or "")
+    otros_valor = ("no" if otros_key.startswith("no") else "espera" if "esperando" in otros_key
+                   else "rechazado" if "no fui aceptado" in otros_key
+                   else "aceptado" if "ya fui aceptado" in otros_key else None)
+    ciudad_raw = buscar(row, "ciudad donde vives", "ciudad o poblacion de residencia", "ciudad de residencia", "ciudad")
+    ciudad_key = plegar_ciudad(ciudad_raw)
+    # Las etiquetas mostrables conservan el nombre conocido; el resto usa la clave
+    # plegada para que Quito/Paysandu/Duran no se separen por ortografía.
+    ciudades_fijas = {"bogota": "Bogotá D.C.", "bogota d c": "Bogotá D.C.", "medellin": "Medellín",
+                      "cali": "Cali", "cartagena": "Cartagena de Indias", "cartagena de indias": "Cartagena de Indias",
+                      "barranquilla": "Barranquilla", "valle de aburra": "Valle de Aburrá", "guayaquil": "Guayaquil",
+                      "quito": "Quito", "paysandu": "Paysandú", "panama": "Panamá", "ciudad de panama": "Panamá"}
+    no_ciudades = {"colombia", "ecuador", "ciudad"}
+    # Seis respuestas contienen una cédula/teléfono (a veces embebido en texto)
+    # en lugar de una ciudad. No se intenta extraer ni adivinar una ciudad.
+    ciudad_no_es_ciudad = ciudad_key in no_ciudades or bool(re.search(r"\d{7,}", ciudad_key))
+    if ciudad_no_es_ciudad or not ciudad_key:
+        ciudad_norm = "sin_dato"
+    elif ciudad_key == "ciudad de panama":
+        ciudad_norm = "Panamá"
+    elif ciudad_key == "panama":
+        ciudad_norm = "Panamá"
+    elif ciudad_key.startswith("guayaquil "):
+        ciudad_norm = "Guayaquil"
+    elif ciudad_key.startswith("valle de aburra "):
+        ciudad_norm = "Valle de Aburrá"
+    elif ciudad_key.startswith("bogota "):
+        ciudad_norm = "Bogotá D.C."
+    elif ciudad_key.startswith("medellin "):
+        ciudad_norm = "Medellín"
+    elif ciudad_key.startswith("cartagena "):
+        ciudad_norm = "Cartagena de Indias"
+    elif ciudad_key.startswith("barranquilla "):
+        ciudad_norm = "Barranquilla"
+    elif ciudad_key.startswith("cali "):
+        ciudad_norm = "Cali"
+    else:
+        ciudad_norm = next((v for k, v in ciudades_fijas.items() if k == ciudad_key), ciudad_key)
+    fuera = (convocatoria == "2025" and pais in {"CO", "EC"}
+             and sum(1 for k, v in row.items() if not k.startswith("_") and limpio(v)) <= 2)
     post = {
         "id_publico": 0, "convocatoria": convocatoria, "pais": pais,
         "fuente": row["_fuente"], "fila_origen": int(row["_fila"]),
         "enviado_en": fecha(buscar(row, "marca temporal")),
-        "enrutado_fuera_cobertura": sum(1 for k, v in row.items() if not k.startswith("_") and limpio(v)) <= 2,
-        "ciudad_declarada": buscar(row, "ciudad donde vives", "ciudad o poblacion", "ciudad"),
-        "ciudad_norm": None,
+        "enrutado_fuera_cobertura": fuera,
+        "formulario_incompleto": convocatoria == "2025" and pais == "UY" and not ciudad_raw,
+        "ciudad_no_es_ciudad": ciudad_no_es_ciudad,
+        "ciudad_declarada": ciudad_raw,
+        "ciudad_norm": ciudad_norm,
         "fecha_nacimiento": nacimiento, "edad": edad(nacimiento, cierre),
         "edad_valida": None if nacimiento is None else 10 <= edad(nacimiento, cierre) <= 80,
         "genero": dominio(buscar(row, "como te identificas", "genero"),
                            {"femenino": "femenino", "masculino": "masculino", "no binario": "no_binario",
                             "otro": "otro", "prefiero no decirlo": "no_responde"}, aliases, "genero", stats),
         "genero_texto_libre": None,
-        "situacion_educativa": None, "anio_grado": None,
+        "situacion_educativa": situacion, "anio_grado": anio_grado,
         "promedio_academico": promedio, "promedio_escala": escala,
         "promedio_pct": round(promedio / escala * 100, 1) if promedio is not None else None,
-        "condicion_laboral": None,
+        "condicion_laboral": condicion,
         "emprendimiento": dominio(buscar(row, "emprendimiento o proyecto"),
             {"si estoy trabajando en un emprendimiento proyecto": "si",
              "no pero estoy considerando iniciar uno": "considera",
              "no no tengo un emprendimiento": "no"}, aliases, "emprendimiento", stats),
-        "otros_programas": None, "estrato": None,
+        "otros_programas": otros_valor, "estrato": None,
         "ingreso_hogar": dominio(buscar(row, "ingreso total en tu hogar"),
             {"menor a un salario minimo": "<1smmlv", "entre 1 y 2 salarios minimos": "1-2smmlv",
              "mayor a 2 salarios minimos": ">2smmlv"}, aliases, "ingreso_hogar", stats),
@@ -273,7 +359,17 @@ def main() -> int:
             dedup[key]["n_ocurrencias"] += 1
         else:
             dedup[key] = alias
+    city_aliases = {}
+    for item in payload:
+        p = item["postulacion"]
+        raw = p.get("ciudad_declarada")
+        if raw:
+            key = (raw, p["pais"])
+            city_aliases[key] = {"ciudad_cruda": raw, "ciudad_norm": p["ciudad_norm"],
+                                 "pais": p["pais"], "tiene_cobertura": p["ciudad_norm"] in
+                                 {"Barranquilla", "Bogotá D.C.", "Cali", "Cartagena de Indias", "Medellín", "Valle de Aburrá", "Guayaquil"}}
     result = {"version": 1, "total": len(payload), "postulaciones": payload,
+              "ciudad_alias": list(city_aliases.values()),
               "valor_alias": list(dedup.values()),
               "campo_no_preguntado": [{"convocatoria": c, "pais": p, "campo": f} for c, p, f in sorted(NO_PREGUNTADOS)],
               "metadatos": {"regla_id_publico": "orden (convocatoria,pais,marca_temporal,_fila)",
@@ -288,12 +384,28 @@ def main() -> int:
             if key not in known and limpio(value):
                 counts[clave_pregunta(key)] += 1
     sin_mapear.write_text("\n".join(f"{n}\t{key}" for key, n in counts.most_common()), encoding="utf-8")
+    # La cola se define sobre el texto declarado, no sobre la categoría canónica:
+    # conserva exactamente las grafías que alguien debe revisar a ojo y no pierde
+    # las variantes que el plegado haya unido.
+    ciudad_rows = [x["postulacion"] for x in payload
+                   if not x["postulacion"].get("enrutado_fuera_cobertura")
+                   and x["postulacion"].get("ciudad_declarada")
+                   and not x["postulacion"].get("ciudad_no_es_ciudad")]
+    ciudad_counts = Counter(x["ciudad_declarada"] for x in ciudad_rows)
+    with (args.salida.parent / "ciudades_cola_larga.csv").open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.writer(fh)
+        writer.writerow(["ciudad_cruda", "ciudad_norm", "filas"])
+        writer.writerows(sorted(((name, next(x["ciudad_norm"] for x in ciudad_rows
+                                               if x["ciudad_declarada"] == name), n)
+                                for name, n in ciudad_counts.items() if n == 1),
+                               key=lambda x: x[0]))
     print(f"OK payload.json: {len(payload)} registros")
     print(f"Preguntas sin mapear registradas: {sin_mapear}")
     for key, n in sorted(stats.items()):
         print(f"DOMINIO {key}={n}")
     print(f"ALIAS valor_alias={len(dedup)}")
-    return 0 if len(payload) == 22163 else 1
+    print(f"ALIAS ciudad_alias={len(city_aliases)} · cola_singletons={sum(n == 1 for n in ciudad_counts.values())}")
+    return 0 if len(payload) == 24203 else 1
 
 
 if __name__ == "__main__":

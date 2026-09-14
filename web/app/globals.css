@@ -29,3 +29,29 @@ html, body {
   color: var(--ink);
   font-family: var(--fuente-sans);
 }
+
+.shell { max-width: 1240px; margin: 0 auto; padding: 42px 20px 80px; }
+.shell h1 { font-size: 32px; letter-spacing: -.03em; margin: 8px 0 18px; }
+.eyebrow { color: var(--ink-2); font-family: var(--fuente-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+.muted { color: var(--ink-2); font-size: 14px; }
+.topline { display: flex; justify-content: space-between; gap: 24px; align-items: end; border-bottom: 1px solid var(--rule); padding-bottom: 24px; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; padding: 18px 0; }
+section { margin-top: 26px; }
+section h2 { font-size: 18px; border-bottom: 1px solid var(--rule); padding-bottom: 8px; }
+.filtergrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+fieldset { border: 1px solid var(--rule); border-radius: 5px; padding: 10px 12px; min-width: 0; }
+legend { font-weight: 700; font-size: 13px; padding: 0 4px; }
+.options { max-height: 220px; overflow: auto; }
+.check { display: flex; gap: 7px; align-items: center; font-size: 13px; padding: 3px 0; }
+.check span { overflow-wrap: anywhere; }
+.check small { color: var(--ink-2); margin-left: auto; }
+.range { display: flex; gap: 6px; align-items: center; }
+.range input { width: 82px; padding: 5px; border: 1px solid var(--rule); border-radius: 3px; background: var(--surface); color: var(--ink); }
+select { padding: 6px; border: 1px solid var(--rule); border-radius: 3px; background: var(--surface); color: var(--ink); }
+.clear { color: #8e3431; border: 0; background: transparent; font-size: 12px; cursor: pointer; }
+.tablehead { display: flex; justify-content: space-between; align-items: baseline; }
+.tablewrap { overflow: auto; border: 1px solid var(--rule); border-radius: 5px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+th { background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+@media (max-width: 700px) { .topline { align-items: start; flex-direction: column; } .shell { padding: 26px 12px 60px; } }

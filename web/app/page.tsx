@@ -1,143 +1,47 @@
 'use client';
 
-// Cascaron. La interfaz de filtros (T8 del spec) va aqui.
-// Lo que ya esta resuelto y NO hay que rehacer:
-//   - login con lista blanca            -> lib/auth.ts
-//   - entrega protegida del dataset     -> app/api/datos/route.ts
-//   - formato del dataset y el filtrado -> lib/dataset.ts (filtrar + contarFacetas)
-//
-// Ver docs/procesos/panel-convocatoria-jc-spec-codex.md (repo admin-usable), T8.
+import { useEffect, useMemo, useState } from 'react';
+import { clienteAuth, authConfigurada, correoPermitido, iniciarSesionGoogle, cerrarSesion } from '@/lib/auth';
+import { contarFacetas, filtrar, type Dataset, type Filtro, type Filtros, type Modo } from '@/lib/dataset';
 
-import { useEffect, useState } from 'react';
-import {
-  clienteAuth,
-  authConfigurada,
-  correoPermitido,
-  iniciarSesionGoogle,
-  cerrarSesion,
-} from '@/lib/auth';
-import type { Dataset } from '@/lib/dataset';
+const GROUPS = [
+  ['Identidad y origen', ['convocatoria', 'pais', 'ciudad', 'fecha_envio']],
+  ['Perfil', ['edad', 'genero', 'situacion_educativa', 'promedio_pct', 'segmentos']],
+  ['Situación', ['ocupaciones', 'condicion_laboral', 'emprendimiento', 'otros_programas']],
+  ['Socioeconómico', ['estrato', 'ingreso_hogar', 'personas_nucleo', 'tipo_vivienda', 'indice_activos']],
+  ['Capacidad', ['tiene_internet', 'acceso_computador', 'horas_semanales', 'comodidad_autonomo', 'nivel_ingles', 'nivel_software']],
+  ['Origen del contacto', ['como_se_entero', 'tiene_embajador']],
+] as const;
+const LABELS: Record<string, string> = { convocatoria: 'Convocatoria', pais: 'País', ciudad: 'Ciudad', fecha_envio: 'Fecha de envío', edad: 'Edad', genero: 'Género', situacion_educativa: 'Situación educativa', promedio_pct: 'Promedio (%)', segmentos: 'Segmentos', ocupaciones: 'Ocupaciones', condicion_laboral: 'Condición laboral', emprendimiento: 'Emprendimiento', otros_programas: 'Otros programas', estrato: 'Estrato', ingreso_hogar: 'Ingreso del hogar', personas_nucleo: 'Personas en el núcleo', tipo_vivienda: 'Tipo de vivienda', indice_activos: 'Índice de activos', tiene_internet: 'Internet', acceso_computador: 'Acceso a computador', horas_semanales: 'Horas semanales', comodidad_autonomo: 'Comodidad aprendiendo', nivel_ingles: 'Nivel de inglés', nivel_software: 'Nivel de software', como_se_entero: 'Cómo se enteró', tiene_embajador: 'Embajador' };
 
 export default function Pagina() {
-  const [correo, setCorreo] = useState<string | null>(null);
-  const [cargando, setCargando] = useState(true);
-  const [datos, setDatos] = useState<Dataset | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!authConfigurada()) {
-      setError('Faltan NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY.');
-      setCargando(false);
-      return;
-    }
-    let vivo = true;
-    const supabaseAuth = clienteAuth();
-    supabaseAuth.auth.getSession().then(async ({ data }) => {
-      const sesion = data.session;
-      if (!vivo) return;
-      const email = sesion?.user?.email ?? null;
-      setCorreo(email);
-      setCargando(false);
-      if (!sesion || !correoPermitido(email)) return;
-
-      try {
-        const resp = await fetch('/api/datos', {
-          headers: { Authorization: `Bearer ${sesion.access_token}` },
-        });
-        if (!resp.ok) throw new Error(`El servidor respondio ${resp.status}`);
-        if (vivo) setDatos(await resp.json());
-      } catch (e) {
-        if (vivo) setError(e instanceof Error ? e.message : 'No se pudo cargar el dataset');
-      }
-    });
-    const { data: sub } = supabaseAuth.auth.onAuthStateChange(() => location.reload());
-    return () => {
-      vivo = false;
-      sub.subscription.unsubscribe();
-    };
-  }, []);
-
-  if (cargando) return <Marco><p>Cargando...</p></Marco>;
-
-  if (!authConfigurada()) {
-    return (
-      <Marco>
-        <p style={{ color: '#8e3431' }}>{error}</p>
-        <p style={{ color: 'var(--ink-2)', marginTop: 12, fontSize: 14 }}>
-          Copiar <code>.env.local.example</code> a <code>.env.local</code> y llenarlo, o
-          definirlas como Environment Variables del proyecto en Vercel.
-        </p>
-      </Marco>
-    );
-  }
-
-  if (!correo) {
-    return (
-      <Marco>
-        <p style={{ color: 'var(--ink-2)', marginBottom: 20 }}>
-          Este panel contiene datos personales. El acceso esta limitado a cuentas autorizadas.
-        </p>
-        <button onClick={iniciarSesionGoogle} style={boton}>Entrar con Google</button>
-      </Marco>
-    );
-  }
-
-  if (!correoPermitido(correo)) {
-    return (
-      <Marco>
-        <p style={{ color: 'var(--ink-2)' }}>
-          La cuenta <b>{correo}</b> no esta autorizada para este panel.
-        </p>
-        <button onClick={cerrarSesion} style={{ ...boton, marginTop: 20 }}>Salir</button>
-      </Marco>
-    );
-  }
-
-  return (
-    <Marco>
-      {error && <p style={{ color: '#8e3431' }}>{error}</p>}
-      {datos && (
-        <>
-          <p style={{ fontSize: 30, fontWeight: 700, letterSpacing: '-0.02em' }}>
-            {datos.total.toLocaleString('es-CO')} postulaciones
-          </p>
-          <p style={{ color: 'var(--ink-2)', marginTop: 4 }}>
-            {Object.keys(datos.campos).length} campos filtrables
-            {datos.es_ejemplo && ' — datos de ejemplo, la base real aun no esta conectada'}
-          </p>
-          <p style={{ color: 'var(--ink-2)', marginTop: 24, fontSize: 14 }}>
-            Interfaz de filtros pendiente (T8). El dataset ya carga y{' '}
-            <code>lib/dataset.ts</code> trae <code>filtrar()</code> y{' '}
-            <code>contarFacetas()</code> listos para usar.
-          </p>
-        </>
-      )}
-      <button onClick={cerrarSesion} style={{ ...boton, marginTop: 32 }}>Salir</button>
-    </Marco>
-  );
+  const [correo, setCorreo] = useState<string | null>(null); const [cargando, setCargando] = useState(true); const [datos, setDatos] = useState<Dataset | null>(null); const [error, setError] = useState<string | null>(null);
+  useEffect(() => { if (!authConfigurada()) { setError('Faltan las variables públicas de Supabase.'); setCargando(false); return; } let vivo = true; const auth = clienteAuth(); auth.auth.getSession().then(async ({ data }) => { const sesion = data.session; if (!vivo) return; const email = sesion?.user?.email ?? null; setCorreo(email); setCargando(false); if (!sesion || !correoPermitido(email)) return; try { const r = await fetch('/api/datos', { headers: { Authorization: `Bearer ${sesion.access_token}` } }); if (!r.ok) throw new Error(`El servidor respondió ${r.status}`); if (vivo) setDatos(await r.json()); } catch (e) { if (vivo) setError(e instanceof Error ? e.message : 'No se pudo cargar el dataset'); } }); const { data: sub } = auth.auth.onAuthStateChange((evento) => { /* OJO: supabase-js dispara INITIAL_SESSION apenas uno se suscribe. Recargar en CUALQUIER evento mete a la pagina en un bucle infinito de recargas y los chunks nunca terminan de bajar. Solo recargar cuando el usuario realmente entra o sale. */ if (evento === 'SIGNED_IN' || evento === 'SIGNED_OUT') location.reload(); }); return () => { vivo = false; sub.subscription.unsubscribe(); }; }, []);
+  if (cargando) return <Marco><p>Cargando…</p></Marco>; if (!authConfigurada()) return <Marco><p style={{ color: '#8e3431' }}>{error}</p></Marco>; if (!correo) return <Marco><p className="muted">Este panel contiene datos personales y está limitado a cuentas autorizadas.</p><button onClick={iniciarSesionGoogle} style={button}>Entrar con Google</button></Marco>; if (!correoPermitido(correo)) return <Marco><p className="muted">La cuenta <b>{correo}</b> no está autorizada.</p><button onClick={cerrarSesion} style={button}>Salir</button></Marco>;
+  return <Marco>{error && <p style={{ color: '#8e3431' }}>{error}</p>}{datos && <Explorador ds={datos} />}<button onClick={cerrarSesion} style={{ ...button, marginTop: 28 }}>Salir</button></Marco>;
 }
 
-const boton: React.CSSProperties = {
-  background: 'var(--accent)',
-  color: 'var(--surface)',
-  border: 'none',
-  borderRadius: 3,
-  padding: '10px 18px',
-  fontSize: 15,
-  cursor: 'pointer',
-};
-
-function Marco({ children }: { children: React.ReactNode }) {
-  return (
-    <main style={{ maxWidth: 860, margin: '0 auto', padding: '64px 20px' }}>
-      <p style={{ fontFamily: 'var(--fuente-mono)', fontSize: 12, letterSpacing: '0.12em',
-                  textTransform: 'uppercase', color: 'var(--ink-2)' }}>
-        Fundacion ROFE
-      </p>
-      <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.025em', margin: '10px 0 22px' }}>
-        Panel de Convocatoria JC
-      </h1>
-      {children}
-    </main>
-  );
+function Explorador({ ds }: { ds: Dataset }) {
+  const [filtros, setFiltros] = useState<Filtros>(() => parseUrl(ds)); const [modo, setModo] = useState<Modo>(() => new URLSearchParams(location.search).get('modo') === 'AL_MENOS_UNA' ? 'AL_MENOS_UNA' : 'TODAS'); const [todos, setTodos] = useState(true);
+  const indices = useMemo(() => filtrar(ds, filtros, modo), [ds, filtros, modo]); const selected = useMemo(() => Array.from(indices).filter((i) => valueAt(ds, 'seleccionado', i) === true).length, [ds, indices]);
+  useEffect(() => { const q = new URLSearchParams({ modo }); Object.entries(filtros).forEach(([c, f]) => q.set(c, encodeFilter(f))); history.replaceState(null, '', `${location.pathname}?${q}`); }, [filtros, modo]);
+  const cambiar = (c: string, f: Filtro | null) => setFiltros((prev) => { const n = { ...prev }; if (f) n[c] = f; else delete n[c]; return n; });
+  const exportar = () => { const cols = ['id_publico', 'convocatoria', 'pais', 'ciudad', 'fecha_envio', 'seleccionado', 'duplicado_de']; const lines = [cols.join(',')]; Array.from(indices).forEach((i) => lines.push(cols.map((c) => csv(valueAt(ds, c, i))).join(','))); const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'postulaciones_filtradas_sin_pii.csv'; a.click(); URL.revokeObjectURL(a.href); };
+  const used: Set<string> = new Set(GROUPS.flatMap(([, fields]) => fields)); const extra = Object.keys(ds.campos).filter((c) => !used.has(c) && c !== 'id_publico');
+  return <><div className="topline"><div><p className="eyebrow">Fundación ROFÉ · JÓVENES creaTIvos</p><h1>Explorador de convocatoria</h1><p className="muted">{indices.length.toLocaleString('es-CO')} de {ds.total.toLocaleString('es-CO')} postulaciones · {selected.toLocaleString('es-CO')} seleccionadas · {indices.length ? (selected / indices.length * 100).toFixed(1).replace('.', ',') : '0,0'}% (M/N)</p></div><button onClick={exportar} style={secondary}>Exportar CSV sin PII</button></div>{ds.es_ejemplo && <p style={{ color: '#8e3431' }}>Advertencia: dataset de ejemplo.</p>}<div className="toolbar"><button onClick={() => { setFiltros({}); setModo('TODAS'); }} style={secondary}>Limpiar filtros</button><label>Modo <select value={modo} onChange={(e) => setModo(e.target.value as Modo)}><option>TODAS</option><option>AL_MENOS_UNA</option></select></label><span className="muted">{Object.keys(filtros).length} filtros activos</span></div>{GROUPS.map(([name, fields]) => <section key={name}><h2>{name}</h2><div className="filtergrid">{fields.filter((c) => ds.campos[c]).map((c) => <FiltroCampo key={c} ds={ds} campo={c} filtros={filtros} cambiar={cambiar} modo={modo} />)}</div></section>)}{extra.length > 0 && <section><h2>Otros campos</h2><div className="filtergrid">{(todos ? extra : extra.slice(0, 8)).map((c) => <FiltroCampo key={c} ds={ds} campo={c} filtros={filtros} cambiar={cambiar} modo={modo} />)}</div>{extra.length > 8 && <button onClick={() => setTodos(!todos)} style={secondary}>{todos ? 'Mostrar menos' : `Mostrar los ${extra.length - 8} restantes`}</button>}</section>}<Tabla ds={ds} indices={indices} /></>;
 }
+
+function FiltroCampo({ ds, campo, filtros, cambiar, modo }: { ds: Dataset; campo: string; filtros: Filtros; cambiar: (c: string, f: Filtro | null) => void; modo: Modo }) {
+  const def = ds.campos[campo]; const actual = filtros[campo]; const counts = useMemo(() => contarFacetas(ds, campo, filtros, modo), [ds, campo, filtros, modo]); const label = LABELS[campo] ?? def.etiqueta;
+  if (def.tipo === 'num') { const f = actual?.tipo === 'num' ? actual : { tipo: 'num' as const, min: def.min ?? 0, max: def.max ?? 100, incluirSinDato: false }; return <fieldset><legend>{label}</legend><div className="range"><input type="number" value={f.min} min={def.min} max={def.max} onChange={(e) => cambiar(campo, { ...f, min: Number(e.target.value) })} /><span>–</span><input type="number" value={f.max} min={def.min} max={def.max} onChange={(e) => cambiar(campo, { ...f, max: Number(e.target.value) })} /></div><label className="check"><input type="checkbox" checked={f.incluirSinDato} onChange={(e) => cambiar(campo, { ...f, incluirSinDato: e.target.checked })} /> Sin dato</label>{actual && <button onClick={() => cambiar(campo, null)} className="clear">× quitar</button>}</fieldset>; }
+  if (def.tipo === 'bool') { const f = actual?.tipo === 'bool' ? actual : null; return <fieldset><legend>{label}</legend>{[1, 0].map((v) => <label className="check" key={v}><input type="checkbox" checked={f?.valor === v} onChange={(e) => cambiar(campo, e.target.checked ? { tipo: 'bool', valor: v as 0 | 1 } : null)} /> {v ? 'Sí' : 'No'} <small>{counts[v] ?? 0}</small></label>)}</fieldset>; }
+  const values = def.valores ?? []; const selected = actual && (actual.tipo === 'cat' || actual.tipo === 'multi') ? actual.valores : []; return <fieldset><legend>{label}</legend><div className="options">{values.map((value, i) => <label className="check" key={value}><input type="checkbox" checked={selected.includes(i)} onChange={(e) => { const next = e.target.checked ? [...selected, i] : selected.filter((x) => x !== i); cambiar(campo, next.length ? { tipo: def.tipo, valores: next } as Filtro : null); }} /> <span>{value}</span> <small>{counts[i] ?? 0}</small></label>)}</div></fieldset>;
+}
+
+function Tabla({ ds, indices }: { ds: Dataset; indices: Int32Array }) { const visible = Array.from(indices).slice(0, 100); return <section><div className="tablehead"><h2>Postulaciones</h2><span className="muted">Mostrando {visible.length} de {indices.length.toLocaleString('es-CO')}</span></div><div className="tablewrap"><table><thead><tr><th>ID</th><th>Conv.</th><th>País</th><th>Ciudad</th><th>Edad</th><th>Seleccionada</th><th>Duplicado</th></tr></thead><tbody>{visible.map((i) => <tr key={i}><td>{valueAt(ds, 'id_publico', i)}</td><td>{valueAt(ds, 'convocatoria', i)}</td><td>{valueAt(ds, 'pais', i)}</td><td>{valueAt(ds, 'ciudad', i)}</td><td>{valueAt(ds, 'edad', i) ?? '—'}</td><td>{valueAt(ds, 'seleccionado', i) ? 'Sí' : 'No'}</td><td>{valueAt(ds, 'duplicado_de', i) ?? '—'}</td></tr>)}</tbody></table></div></section>; }
+function valueAt(ds: Dataset, c: string, i: number): string | number | boolean | null { if (c === 'id_publico') return i + 1; const d = ds.campos[c]; const v = ds.columnas[c]?.[i]; if (v === null || v === undefined) return null; if (d?.tipo === 'cat') return d.valores?.[v as number] ?? null; if (d?.tipo === 'multi') return (v as number[]).map((x) => d.valores?.[x]).join(' · '); if (d?.tipo === 'bool') return v === 1; return v as number; }
+function encodeFilter(f: Filtro) { if (f.tipo === 'cat' || f.tipo === 'multi') return `${f.tipo}:${f.valores.join('.')}`; if (f.tipo === 'bool') return `bool:${f.valor}`; return `num:${f.min},${f.max},${f.incluirSinDato ? 1 : 0}`; }
+function parseUrl(ds: Dataset): Filtros { const out: Filtros = {}; const q = new URLSearchParams(location.search); for (const [c, raw] of Array.from(q.entries())) { const d = ds.campos[c]; if (!d || c === 'modo') continue; const [kind, rest] = raw.split(':'); if (kind === 'cat' || kind === 'multi') out[c] = { tipo: kind, valores: rest.split('.').map(Number) } as Filtro; else if (kind === 'bool') out[c] = { tipo: 'bool', valor: Number(rest) as 0 | 1 }; else if (kind === 'num') { const [min, max, sin] = rest.split(',').map(Number); out[c] = { tipo: 'num', min, max, incluirSinDato: sin === 1 }; } } return out; }
+function csv(v: string | number | boolean | null) { const s = v === null ? '' : String(v); return `"${s.replaceAll('"', '""')}"`; }
+const button: React.CSSProperties = { background: 'var(--accent)', color: 'var(--surface)', border: 'none', borderRadius: 4, padding: '10px 18px', fontSize: 15, cursor: 'pointer' }; const secondary: React.CSSProperties = { background: 'transparent', color: 'var(--accent)', border: '1px solid var(--accent)', borderRadius: 4, padding: '8px 12px', fontSize: 13, cursor: 'pointer' };
+function Marco({ children }: { children: React.ReactNode }) { return <main className="shell"><p className="eyebrow">Fundación ROFÉ</p><h1>Panel de Convocatoria JC</h1>{children}</main>; }

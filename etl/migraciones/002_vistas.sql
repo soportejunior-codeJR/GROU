@@ -194,7 +194,8 @@ select
   case when np.np_ocupaciones then array['no_aplica']
        else coalesce(ocu.vals, array['sin_dato']) end  as ocupaciones,
   case when np.np_como_se_entero then array['no_aplica']
-       else coalesce(cse.vals, array['sin_dato']) end  as como_se_entero
+       else coalesce(cse.vals, array['sin_dato']) end  as como_se_entero,
+  rs.duplicado_de
 
 from postulaciones p
 left join v_campos_no_preguntados np
