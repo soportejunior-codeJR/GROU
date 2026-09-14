@@ -3,36 +3,81 @@
 import type { CSSProperties } from 'react';
 
 import { useMemo } from 'react';
-import { contarFacetas, filtrar, type Dataset, type Filtros, type Modo } from '@/lib/dataset';
+import {
+  contarFacetas,
+  filtrar,
+  type Dataset,
+  type Filtro,
+  type Filtros,
+  type Modo,
+} from '@/lib/dataset';
+import { alternarFiltro } from '@/lib/filtros';
+import { rangosNumericos } from '@/lib/rangosNumericos';
 
-type Props = { ds: Dataset; campo: string; filtros: Filtros; modo: Modo };
+type Props = {
+  ds: Dataset;
+  campo: string;
+  filtros: Filtros;
+  modo: Modo;
+  cambiar?: (campo: string, filtro: Filtro | null) => void;
+};
 type Item = { count: number; index: number; label: string };
 
-export default function GraficoFaceta({ ds, campo, filtros, modo }: Props) {
+export default function GraficoFaceta({ ds, campo, filtros, modo, cambiar }: Props) {
   const def = ds.campos[campo];
-  const counts = useMemo(() => contarFacetas(ds, campo, filtros, modo), [ds, campo, filtros, modo]);
+  const rangos = def.tipo === 'num' ? rangosNumericos(ds, campo) : [];
+  const counts = useMemo(
+    () => contarFacetas(ds, campo, filtros, modo, def.tipo === 'num' ? rangos : undefined),
+    [ds, campo, filtros, modo, def.tipo, rangos],
+  );
   const denominator = useMemo(
     () => filtrar(ds, filtros, modo, campo).length,
     [ds, campo, filtros, modo],
   );
   const selected = selectedValues(filtros[campo]);
-  const labels = def.valores ?? [];
+  const labels = def.tipo === 'bool' ? ['No', 'Sí'] : (def.valores ?? []);
   if (def.tipo === 'num')
     return (
-      <Histograma ds={ds} campo={campo} filtros={filtros} modo={modo} denominator={denominator} />
+      <Histograma
+        ds={ds}
+        campo={campo}
+        filtros={filtros}
+        modo={modo}
+        denominator={denominator}
+        rangos={rangos}
+        counts={counts}
+        cambiar={cambiar}
+      />
     );
   const visible = counts
     .map((count, index) => ({ count, index, label: labels[index] ?? String(index) }))
     .filter((item) => item.count > 0 || selected.includes(item.index));
   const chart =
     def.tipo === 'multi' || visible.length > 6 ? (
-      <Barras items={visible} selected={selected} denominator={denominator} campo={campo} />
+      <Barras
+        items={visible}
+        selected={selected}
+        denominator={denominator}
+        campo={campo}
+        cambiar={cambiar}
+        actual={filtros[campo]}
+      />
     ) : (
-      <Dona items={visible} selected={selected} denominator={denominator} campo={campo} />
+      <Dona
+        items={visible}
+        selected={selected}
+        denominator={denominator}
+        campo={campo}
+        cambiar={cambiar}
+        actual={filtros[campo]}
+      />
     );
   return (
     <div className="chart">
-      <p className="chart-note">Conteo sobre los demás filtros</p>
+      <p className="chart-note">
+        Conteo sobre los demás filtros{cambiar ? ' · clic para filtrar' : ''}
+        {cambiar && modo === 'AL_MENOS_UNA' ? ' · cada clic suma personas' : ''}
+      </p>
       {chart}
     </div>
   );
@@ -43,11 +88,15 @@ function Dona({
   selected,
   denominator,
   campo,
+  cambiar,
+  actual,
 }: {
   items: Item[];
   selected: number[];
   denominator: number;
   campo: string;
+  cambiar?: Props['cambiar'];
+  actual?: Filtro;
 }) {
   const total = items.reduce((sum, item) => sum + item.count, 0);
   let offset = 0;
@@ -62,6 +111,10 @@ function Dona({
             offset += dash;
             return (
               <circle
+                onClick={() =>
+                  cambiar?.(campo, alternarFiltro(actual, { tipo: 'cat', indice: item.index }))
+                }
+                role={cambiar ? 'button' : undefined}
                 className={selected.includes(item.index) ? 'donut-selected' : 'donut-rest'}
                 key={item.index}
                 cx="21"
@@ -77,6 +130,7 @@ function Dona({
                   position,
                   selected.includes(item.index),
                   'stroke',
+                  Boolean(actual),
                 )}
               />
             );
@@ -91,7 +145,9 @@ function Dona({
       </svg>
       <div className="chart-labels">
         {items.map((item, position) => (
-          <span
+          <button
+            type="button"
+            disabled={!cambiar}
             key={item.index}
             className={selected.includes(item.index) ? 'chart-label-selected' : ''}
             style={itemStyle(
@@ -101,10 +157,15 @@ function Dona({
               position,
               selected.includes(item.index),
               'label',
+              Boolean(actual),
             )}
+            aria-pressed={selected.includes(item.index)}
+            onClick={() =>
+              cambiar?.(campo, alternarFiltro(actual, { tipo: 'cat', indice: item.index }))
+            }
           >
             {item.label}: {formatCount(item.count, denominator)}
-          </span>
+          </button>
         ))}
       </div>
     </div>
@@ -116,11 +177,15 @@ function Barras({
   selected,
   denominator,
   campo,
+  cambiar,
+  actual,
 }: {
   items: Item[];
   selected: number[];
   denominator: number;
   campo: string;
+  cambiar?: Props['cambiar'];
+  actual?: Filtro;
 }) {
   const sorted = [...items].sort((a, b) => b.count - a.count);
   const shown =
@@ -143,8 +208,27 @@ function Barras({
           key={item.index}
           title={`${item.label}: ${formatCount(item.count, denominator)}`}
         >
-          <span className="bar-label">{item.label}</span>
+          {item.index === -1 ? (
+            <span className="bar-label">{item.label}</span>
+          ) : (
+            <button
+              type="button"
+              className="bar-label"
+              aria-pressed={selected.includes(item.index)}
+              aria-label={`${item.label}: ${formatCount(item.count, denominator)}`}
+              onClick={() =>
+                cambiar?.(campo, alternarFiltro(actual, { tipo: 'cat', indice: item.index }))
+              }
+            >
+              {item.label}
+            </button>
+          )}
           <span
+            onClick={() =>
+              item.index >= 0 &&
+              cambiar?.(campo, alternarFiltro(actual, { tipo: 'cat', indice: item.index }))
+            }
+            role={item.index >= 0 && cambiar ? 'button' : undefined}
             className={selected.includes(item.index) ? 'bar-selected' : 'bar-rest'}
             style={{
               width: `${(item.count / max) * 100}%`,
@@ -155,6 +239,7 @@ function Barras({
                 position,
                 selected.includes(item.index),
                 'fill',
+                Boolean(actual),
               ),
             }}
           />
@@ -165,35 +250,73 @@ function Barras({
   );
 }
 
-function Histograma({ ds, campo, filtros, modo, denominator }: Props & { denominator: number }) {
+function Histograma({
+  ds,
+  campo,
+  filtros,
+  modo,
+  denominator,
+  rangos,
+  counts,
+  cambiar,
+}: Props & { denominator: number; rangos: ReturnType<typeof rangosNumericos>; counts: number[] }) {
   const base = useMemo(() => filtrar(ds, filtros, modo, campo), [ds, campo, filtros, modo]);
-  const def = ds.campos[campo];
-  const min = def.min ?? 0;
-  const max = def.max ?? 100;
-  const bins = Array.from({ length: 8 }, (_, index) => ({
-    label: `${Math.round(min + ((max - min) * index) / 8)}–${Math.round(min + ((max - min) * (index + 1)) / 8)}`,
-    count: 0,
-    index,
-  }));
-  base.forEach((i) => {
-    const value = ds.columnas[campo]?.[i];
-    if (typeof value === 'number')
-      bins[Math.min(7, Math.floor(((value - min) / Math.max(1, max - min)) * 8))].count++;
-  });
-  const maxCount = Math.max(...bins.map((bin) => bin.count), 1);
+  const actual = filtros[campo];
+  const maxCount = Math.max(...counts, 1);
+  const bins = [
+    ...rangos.map((rango, index) => ({ ...rango, count: counts[index] ?? 0, index })),
+    {
+      etiqueta: 'Sin dato',
+      min: 0,
+      max: 0,
+      count: counts[rangos.length] ?? 0,
+      index: rangos.length,
+    },
+  ];
   return (
     <div className="histogram">
-      <p className="chart-note">Rango elegido · {formatCount(base.length, denominator)} filas</p>
+      <p className="chart-note">
+        Rango elegido · {formatCount(base.length, denominator)} filas
+        {cambiar ? ' · clic para filtrar' : ''}
+      </p>
       <div className="histogram-bars">
         {bins.map((bin) => (
-          <div className="histogram-bin" key={bin.index} title={`${bin.label}: ${bin.count}`}>
-            <span
+          <div className="histogram-bin" key={bin.index} title={`${bin.etiqueta}: ${bin.count}`}>
+            <button
+              type="button"
+              className="histogram-bar-button"
+              disabled={
+                !cambiar ||
+                (bin.count === 0 &&
+                  !(
+                    actual?.tipo === 'num' &&
+                    bin.index < rangos.length &&
+                    actual.min <= bin.max &&
+                    actual.max >= bin.min
+                  ))
+              }
+              aria-pressed={
+                actual?.tipo === 'num' &&
+                (bin.index === rangos.length
+                  ? actual.incluirSinDato
+                  : actual.min <= bin.max && actual.max >= bin.min)
+              }
+              onClick={() =>
+                cambiar?.(
+                  campo,
+                  bin.index === rangos.length
+                    ? alternarFiltro(actual, { tipo: 'sin_dato' })
+                    : alternarFiltro(actual, { tipo: 'num', rango: bin }),
+                )
+              }
               style={{
                 height: `${(bin.count / maxCount) * 100}%`,
                 backgroundColor: `var(--chart-muted-${(bin.index % 6) + 1})`,
               }}
             />
-            <small>{bin.label}</small>
+            <small>
+              {bin.etiqueta}: {formatCount(bin.count, denominator)}
+            </small>
           </div>
         ))}
       </div>
@@ -202,6 +325,7 @@ function Histograma({ ds, campo, filtros, modo, denominator }: Props & { denomin
 }
 
 function selectedValues(filter: Filtros[string] | undefined) {
+  if (filter?.tipo === 'bool') return [filter.valor];
   return filter && (filter.tipo === 'cat' || filter.tipo === 'multi') ? filter.valores : [];
 }
 
@@ -246,9 +370,21 @@ function itemStyle(
   position: number,
   selected: boolean,
   target: 'label' | 'stroke' | 'fill',
+  hasFilter: boolean,
 ): CSSProperties {
   const semantic = semanticStyle(campo, label, target);
-  if (Object.keys(semantic).length) return semantic;
+  if (Object.keys(semantic).length) {
+    const faded = hasFilter && !selected;
+    return {
+      ...semantic,
+      opacity: faded ? 0.35 : 1,
+      ...(target === 'label' && selected ? { fontWeight: 700 } : {}),
+      ...(target === 'stroke' && selected ? { strokeWidth: 6 } : {}),
+      ...(target === 'fill' && selected
+        ? { outline: '2px solid currentColor', outlineOffset: '1px' }
+        : {}),
+    };
+  }
   const color = selected ? 'var(--chart-selected)' : `var(--chart-muted-${(position % 6) + 1})`;
   if (target === 'stroke') return { stroke: color };
   if (target === 'fill') return { backgroundColor: color };

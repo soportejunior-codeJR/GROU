@@ -69,8 +69,16 @@ const GROUPS = [
     ],
     color: 'red',
   },
-  { name: 'Antecedentes con JC', fields: ['aplico_antes_jc', 'fue_beneficiario_antes'], color: 'blue' },
-  { name: 'Programa', fields: ['datos_curso', 'pct_avance', 'cursos_inscritos', 'cursos_aprobados'], color: 'green' },
+  {
+    name: 'Antecedentes con JC',
+    fields: ['aplico_antes_jc', 'fue_beneficiario_antes'],
+    color: 'blue',
+  },
+  {
+    name: 'Programa',
+    fields: ['datos_curso', 'pct_avance', 'cursos_inscritos', 'cursos_aprobados'],
+    color: 'green',
+  },
 ] as const;
 
 export default function Pagina() {
@@ -218,8 +226,13 @@ function Explorador({ ds }: { ds: Dataset }) {
       'duplicado_de',
     ];
     const etiquetas: Record<string, string> = {
-      id_publico: 'ID público', convocatoria: 'Convocatoria', pais: 'País', ciudad: 'Ciudad',
-      fecha_envio: 'Fecha de envío', seleccionado: 'Seleccionada', duplicado_de: 'Duplicado de',
+      id_publico: 'ID público',
+      convocatoria: 'Convocatoria',
+      pais: 'País',
+      ciudad: 'Ciudad',
+      fecha_envio: 'Fecha de envío',
+      seleccionado: 'Seleccionada',
+      duplicado_de: 'Duplicado de',
     };
     const lines = [cols.map((c) => etiquetas[c]).join(',')];
     Array.from(indices).forEach((i) =>
@@ -311,7 +324,12 @@ function Explorador({ ds }: { ds: Dataset }) {
       {Object.keys(filtros).length > 0 && (
         <div className="active-filters panel-controls" aria-label="Filtros activos">
           {Object.keys(filtros).map((campo) => (
-            <button type="button" className="filter-chip" key={campo} onClick={() => cambiar(campo, null)}>
+            <button
+              type="button"
+              className="filter-chip"
+              key={campo}
+              onClick={() => cambiar(campo, null)}
+            >
               {describirFiltros(ds, { [campo]: filtros[campo] }, LABELS)} ×
             </button>
           ))}
