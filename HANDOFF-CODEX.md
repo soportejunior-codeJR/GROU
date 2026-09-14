@@ -345,7 +345,15 @@ Cada test imprime OK/FALLA; el script sale ≠ 0 si algo falla.
 7. `seleccionado = true` cuenta exactamente **832**
 8. `indice_activos` NULL en el 100 % de UY 2025, no-nulo en ≥ 99 % del resto
 9. `enrutado_fuera_cobertura`: 955 en CO 2025, 626 en EC 2025, **0 en UY**, 0 en toda 2026
-10. Ninguna ciudad con cobertura tiene filas `enrutado_fuera_cobertura`
+10. **(REDEFINIDO 2026-09-13)** La cobertura es por par **(país, ciudad)**, no por ciudad sola.
+    Barranquilla tiene cobertura en Colombia y no en Ecuador. Los pares cubiertos son:
+    `CO`: Barranquilla · Bogotá D.C. · Cali · Cartagena de Indias · Medellín · Valle de Aburrá ·
+    `EC`: Guayaquil.
+    Bajo ese criterio, de las 34 filas que fallaban: **10 son enrutamiento correcto** (gente que
+    llenó el formulario del país equivocado) y **24 son fricción real** — 18 en `CO`/Cartagena de
+    Indias y 6 en `EC`/Guayaquil.
+    **El test afirma exactamente 24 y las lista.** No es un cero: es un guardián de regresión sobre
+    un hallazgo conocido. Si sube o baja, algo cambió en la normalización y hay que mirarlo.
 11. **Anon no puede leer `postulaciones_pii`**: debe dar `permission denied` (401/42501), **no una
     lista vacía**. Una lista vacía sobre tabla vacía es un falso OK que se rompe al cargar datos.
 12. Seleccionados por ciudad vs. hojas `BOG selec` (149) y `MED JC` (110): reportar la diferencia.
@@ -435,3 +443,34 @@ Sumarlos después es un `UPDATE`, no un rediseño. **No los rellenes con nada mi
 
 Después de T4, `npm run dataset` en `web/` ya trae datos reales en vez del archivo de ejemplo, y el
 siguiente push a `main` los despliega solo.
+
+---
+
+## 15. Las 24 de fricción — qué son y por qué no se "arreglan"
+
+Salieron del test 10 y **no son un error del dato**: son personas que viven en una ciudad **con**
+programa y a las que el formulario sacó del flujo por cómo escribieron el nombre de su ciudad.
+
+| Lo que escribieron | Filas | Lo que el formulario esperaba |
+|---|---:|---|
+| `Cartagena` | 13 | `Cartagena de Indias` |
+| `Cartagena, Bolívar` · `Cartagena bolivar` · `Cartagena Bolivar` · `Cartagena- Colombia` | 4 | idem |
+| `Cartagena de indias` (minúscula) | 1 | idem |
+| `Guayaquil` y `Guayaquil Guasmo Sur` en el form de Ecuador | 6 | `Guayaquil` exacto |
+
+**No se corrigen retroactivamente.** Esas personas efectivamente no completaron el formulario: no
+tenemos sus datos y no se les puede inventar una postulación. La bandera
+`enrutado_fuera_cobertura` describe **lo que pasó**, y eso es correcto.
+
+**Sí hay que poder verlas en el panel.** Es una respuesta directa a la pregunta del cliente sobre
+fricciones en el proceso: *18 personas de Cartagena quedaron fuera por escribir el nombre de su
+ciudad sin "de Indias"*. Para la próxima convocatoria eso se arregla con una lista desplegable en
+vez de texto libre — que es exactamente lo que Colombia ya hizo en 2026, y por eso Colombia 2026
+tiene cero casos.
+
+**Limitación conocida del esquema:** `ciudad_alias` tiene la PK en `ciudad_cruda` sola, así que el
+mismo texto no puede mapear a dos países — y `Guayaquil` aparece tanto en el formulario de Colombia
+como en el de Ecuador. Por eso la cobertura **no** se lee de `ciudad_alias.tiene_cobertura`: se
+evalúa contra el par (país, ciudad). Si más adelante el panel necesita cobertura por convocatoria
+(Panamá solo existió en 2026), eso pide una tabla `cobertura_programa (pais, ciudad_norm,
+convocatoria)`. Hoy no hace falta.
