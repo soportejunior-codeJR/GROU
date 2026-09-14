@@ -1091,3 +1091,88 @@ postulaciones de 2026; el de 2025 debe acotarse a postulaciones de 2025, por la 
 - [ ] Opciones en 0 escondidas; cajas sin datos escondidas; los chips siguen permitiendo quitar filtros
 - [ ] Datos de curso cargados para 2025 y 2026, con `no_aplica` para el resto
 - [ ] `npm run build` en verde y la suite de integridad completa
+
+---
+
+# T13 — Informe imprimible: ver todos los gráficos y bajarlos en PDF
+
+Pedido del cliente: poder llevarse las gráficas de una segmentación a una reunión.
+
+## Por qué impresión y no PPT ni DOCX
+
+Se evaluaron las tres. **Imprimir gana y no está cerca:**
+
+- Los gráficos ya son **SVG puro** — nada de Recharts ni canvas. El navegador los imprime como
+  vectores: nítidos a cualquier tamaño, sin rasterizar.
+- Cero dependencias nuevas, cero trabajo de servidor, funciona en cualquier navegador.
+- **Fidelidad exacta**: sale lo que ven en pantalla. Un PPT o un DOCX obligarían a redibujar cada
+  gráfico con otra librería, y el resultado siempre sería una aproximación peor.
+
+Si algún día alguien necesita editar las diapositivas, ahí sí se justifica `pptxgenjs`. Hoy no:
+lo que piden es llevarse lo que están viendo.
+
+## Lo que hay que construir
+
+### 1. Vista de informe
+
+Un botón **"Ver informe"** al final del Explorador que despliega, en una sola página, **el gráfico
+de todos los campos con datos** en el subconjunto vigente. No uno por uno girando tarjetas: todos
+a la vez, en una rejilla.
+
+Reglas que ya existen y aquí también aplican:
+
+- Solo los campos que tienen datos en el subconjunto (§4). Si se filtró a no seleccionados, las
+  gráficas de cursos no aparecen.
+- La forma la decide el campo, como en T10.2: dona hasta 6 categorías, barras por encima, top 10
+  + "Otras" cuando hay muchas, histograma en los numéricos.
+- Los números salen de `contarFacetas()`, los mismos que ve en los filtros. **No recalcules nada**:
+  si el informe y el panel discrepan, el informe pierde toda credibilidad.
+
+### 2. El encabezado del informe — lo más importante de todo
+
+**Un PDF de gráficas sin contexto no significa nada.** Seis meses después, nadie va a saber si esa
+dona era de todo el universo o de un recorte. El informe abre con:
+
+- **Los filtros aplicados**, en texto legible: "Estrato 3 · con emprendimiento · no seleccionados"
+- **La base**: `N de 24.203 postulaciones · M seleccionadas · X %`
+- **El modo**: "cumple todas las condiciones" o "cumple al menos una"
+- **La fecha** de generación
+- Una línea que diga que las cifras salen del panel de convocatoria de Jóvenes creaTIvos
+
+Sin eso, es una hoja de círculos de colores.
+
+### 3. Botón de descarga
+
+**"Descargar PDF"** llama a `window.print()`. El navegador abre su diálogo y la persona elige
+"Guardar como PDF", que es el flujo que ya conoce. No hace falta explicarle nada.
+
+### 4. Estilos de impresión — `@media print`
+
+Lo que define si el PDF sirve o da vergüenza:
+
+- **Esconder** los controles: panel de filtros, botones, buscadores, navegación, el botón de salir
+- **Mostrar** el encabezado de contexto y la rejilla de gráficos
+- `break-inside: avoid` en cada tarjeta de gráfico, para que ninguna quede partida entre páginas
+- Fondo blanco y tinta oscura **siempre**, aunque el usuario tenga el panel en modo oscuro. Un PDF
+  con fondo negro gasta tóner y se lee mal
+- Márgenes de página razonables y dos o tres gráficos por fila, no uno gigante por página
+- `print-color-adjust: exact` en los gráficos, o el navegador les quita el relleno de color
+- La tabla de resultados **no** va: son hasta 24.203 filas y nadie quiere ese PDF
+
+### 5. Que no se pierda la trazabilidad
+
+Al pie de cada página, la URL con los filtros — la misma que ya sincroniza el panel. Así quien
+reciba el PDF puede abrir el panel exactamente en ese estado y seguir explorando. **Es lo que
+convierte un informe muerto en un punto de partida.**
+
+## Aceptación
+
+- [ ] Botón "Ver informe" al final del Explorador
+- [ ] Muestra los gráficos de todos los campos con datos, en rejilla
+- [ ] Los números coinciden exactamente con los de los filtros
+- [ ] Encabezado con filtros aplicados, base, modo y fecha
+- [ ] "Descargar PDF" abre el diálogo de impresión
+- [ ] El PDF sale sin controles, en fondo blanco, sin gráficos partidos entre páginas
+- [ ] La tabla de resultados no aparece en el PDF
+- [ ] URL con los filtros al pie
+- [ ] Probado imprimiendo de verdad a PDF, no solo mirando la vista previa
