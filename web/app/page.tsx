@@ -156,6 +156,9 @@ function Explorador({ ds }: { ds: Dataset }) {
   );
   const [todos, setTodos] = useState(true);
   const [informe, setInforme] = useState(false);
+  const [numericosComoBotones, setNumericosComoBotones] = useState(
+    () => new URLSearchParams(location.search).get('vista_numericos') === 'botones',
+  );
   const indices = useMemo(() => filtrar(ds, filtros, modo), [ds, filtros, modo]);
   const selected = useMemo(
     () => Array.from(indices).filter((i) => valueAt(ds, 'seleccionado', i) === true).length,
@@ -163,9 +166,10 @@ function Explorador({ ds }: { ds: Dataset }) {
   );
   useEffect(() => {
     const q = new URLSearchParams({ modo });
+    if (numericosComoBotones) q.set('vista_numericos', 'botones');
     Object.entries(filtros).forEach(([c, f]) => q.set(c, encodeFilter(f)));
     history.replaceState(null, '', `${location.pathname}?${q}`);
-  }, [filtros, modo]);
+  }, [filtros, modo, numericosComoBotones]);
   const cambiar = (c: string, f: Filtro | null) =>
     setFiltros((prev) => {
       const n = { ...prev };
@@ -263,6 +267,13 @@ function Explorador({ ds }: { ds: Dataset }) {
             <option>AL_MENOS_UNA</option>
           </select>
         </label>
+        <button
+          type="button"
+          className="button button-secondary"
+          onClick={() => setNumericosComoBotones(!numericosComoBotones)}
+        >
+          {numericosComoBotones ? 'Ver como rango' : 'Ver como botones'}
+        </button>
         <span className="muted">{Object.keys(filtros).length} filtros activos</span>
       </div>
       <div className="panel-controls">
@@ -280,6 +291,7 @@ function Explorador({ ds }: { ds: Dataset }) {
                     filtros={filtros}
                     cambiar={cambiar}
                     modo={modo}
+                    numericosComoBotones={numericosComoBotones}
                   />
                 ))}
             </div>
@@ -297,6 +309,7 @@ function Explorador({ ds }: { ds: Dataset }) {
                   filtros={filtros}
                   cambiar={cambiar}
                   modo={modo}
+                  numericosComoBotones={numericosComoBotones}
                 />
               ))}
             </div>
@@ -309,13 +322,7 @@ function Explorador({ ds }: { ds: Dataset }) {
         )}
       </div>
       {informe && (
-        <Informe
-          ds={ds}
-          filtros={filtros}
-          modo={modo}
-          indices={indices}
-          seleccionadas={selected}
-        />
+        <Informe ds={ds} filtros={filtros} modo={modo} indices={indices} seleccionadas={selected} />
       )}
       <div className="report-trigger no-print">
         <button className="button button-primary" onClick={() => setInforme(!informe)}>

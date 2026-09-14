@@ -8,6 +8,7 @@ import {
   type Filtro,
   type Filtros,
   type Modo,
+  type RangoNumerico,
 } from '@/lib/dataset';
 import GraficoFaceta from './GraficoFaceta';
 
@@ -97,17 +98,23 @@ export default function FiltroCard({
   filtros,
   cambiar,
   modo,
+  numericosComoBotones,
 }: {
   ds: Dataset;
   campo: string;
   filtros: Filtros;
   cambiar: (c: string, f: Filtro | null) => void;
   modo: Modo;
+  numericosComoBotones: boolean;
 }) {
   const [grafico, setGrafico] = useState(false);
   const def = ds.campos[campo];
   const actual = filtros[campo];
-  const counts = useMemo(() => contarFacetas(ds, campo, filtros, modo), [ds, campo, filtros, modo]);
+  const rangos = def.tipo === 'num' ? rangosNumericos(ds, campo) : [];
+  const counts = useMemo(
+    () => contarFacetas(ds, campo, filtros, modo, numericosComoBotones ? rangos : undefined),
+    [ds, campo, filtros, modo, numericosComoBotones, rangos],
+  );
   const base = useMemo(() => filtrar(ds, filtros, modo, campo), [ds, campo, filtros, modo]);
   const label = LABELS[campo] ?? def.etiqueta;
   const activo = Boolean(actual);
@@ -154,6 +161,8 @@ export default function FiltroCard({
           actual={actual}
           counts={counts}
           denominator={base.length}
+          rangos={rangos}
+          numericosComoBotones={numericosComoBotones}
         />
       )}
     </fieldset>
@@ -168,6 +177,8 @@ function Control({
   actual,
   counts,
   denominator,
+  rangos,
+  numericosComoBotones,
 }: {
   ds: Dataset;
   campo: string;
@@ -176,6 +187,8 @@ function Control({
   actual: Filtro | undefined;
   counts: number[];
   denominator: number;
+  rangos: RangoNumerico[];
+  numericosComoBotones: boolean;
 }) {
   const def = ds.campos[campo];
   if (def.tipo === 'num') {
@@ -183,6 +196,62 @@ function Control({
       actual?.tipo === 'num'
         ? actual
         : { tipo: 'num' as const, min: def.min ?? 0, max: def.max ?? 100, incluirSinDato: false };
+    if (numericosComoBotones) {
+      const seleccionado = actual?.tipo === 'num' ? actual : null;
+      return (
+        <div className="numeric-options">
+          {rangos.map((rango, i) => {
+            const activo =
+              seleccionado !== null &&
+              seleccionado.min <= rango.max &&
+              seleccionado.max >= rango.min;
+            return counts[i] > 0 || activo ? (
+              <button
+                type="button"
+                className={`range-option${activo ? ' range-option-active' : ''}`}
+                key={rango.etiqueta}
+                onClick={() =>
+                  cambiar(
+                    campo,
+                    activo
+                      ? null
+                      : { tipo: 'num', min: rango.min, max: rango.max, incluirSinDato: false },
+                  )
+                }
+              >
+                {rango.etiqueta} <small>{formatearConteo(counts[i] ?? 0, denominator)}</small>
+              </button>
+            ) : null;
+          })}
+          {counts[rangos.length] > 0 || (actual?.tipo === 'num' && actual.incluirSinDato) ? (
+            <label className="range-option check">
+              <input
+                type="checkbox"
+                checked={actual?.tipo === 'num' && actual.incluirSinDato}
+                onChange={(e) => {
+                  const f =
+                    actual?.tipo === 'num'
+                      ? actual
+                      : {
+                          tipo: 'num' as const,
+                          min: rangos[0].min,
+                          max: rangos[rangos.length - 1].max,
+                          incluirSinDato: false,
+                        };
+                  cambiar(campo, { ...f, incluirSinDato: e.target.checked });
+                }}
+              />
+              Sin dato <small>{formatearConteo(counts[rangos.length] ?? 0, denominator)}</small>
+            </label>
+          ) : null}
+          {actual && (
+            <button onClick={() => cambiar(campo, null)} className="clear">
+              × quitar
+            </button>
+          )}
+        </div>
+      );
+    }
     return (
       <>
         <div className="range">
@@ -202,14 +271,16 @@ function Control({
             onChange={(e) => cambiar(campo, { ...f, max: Number(e.target.value) })}
           />
         </div>
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={f.incluirSinDato}
-            onChange={(e) => cambiar(campo, { ...f, incluirSinDato: e.target.checked })}
-          />{' '}
-          Sin dato
-        </label>
+        {(counts[1] > 0 || f.incluirSinDato) && (
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={f.incluirSinDato}
+              onChange={(e) => cambiar(campo, { ...f, incluirSinDato: e.target.checked })}
+            />{' '}
+            Sin dato
+          </label>
+        )}
         {actual && (
           <button onClick={() => cambiar(campo, null)} className="clear">
             × quitar
@@ -242,23 +313,97 @@ function Control({
     actual && (actual.tipo === 'cat' || actual.tipo === 'multi') ? actual.valores : [];
   return (
     <div className="options">
-      {values.map((value, i) =>
-        (counts[i] > 0 || selected.includes(i)) && (
-        <label className="check" key={value}>
-          <input
-            type="checkbox"
-            checked={selected.includes(i)}
-            onChange={(e) => {
-              const next = e.target.checked ? [...selected, i] : selected.filter((x) => x !== i);
-              cambiar(campo, next.length ? ({ tipo: def.tipo, valores: next } as Filtro) : null);
-            }}
-          />{' '}
-          <span>{value}</span> <small>{formatearConteo(counts[i] ?? 0, denominator)}</small>
-        </label>
-        ),
+      {values.map(
+        (value, i) =>
+          (counts[i] > 0 || selected.includes(i)) && (
+            <label className="check" key={value}>
+              <input
+                type="checkbox"
+                checked={selected.includes(i)}
+                onChange={(e) => {
+                  const next = e.target.checked
+                    ? [...selected, i]
+                    : selected.filter((x) => x !== i);
+                  cambiar(
+                    campo,
+                    next.length ? ({ tipo: def.tipo, valores: next } as Filtro) : null,
+                  );
+                }}
+              />{' '}
+              <span>{value}</span> <small>{formatearConteo(counts[i] ?? 0, denominator)}</small>
+            </label>
+          ),
       )}
     </div>
   );
+}
+
+function rangosNumericos(ds: Dataset, campo: string): RangoNumerico[] {
+  const def = ds.campos[campo];
+  const min = def.min ?? 0;
+  const max = def.max ?? 100;
+  const porCampo: Record<string, RangoNumerico[]> = {
+    estrato: [1, 2, 3, 4, 5, 6].map((valor) => ({
+      min: valor,
+      max: valor,
+      etiqueta: String(valor),
+    })),
+    personas_nucleo: [1, 2, 3, 4, 5, 6]
+      .map((valor) => ({
+        min: valor,
+        max: valor,
+        etiqueta: String(valor),
+      }))
+      .concat({ min: 7, max, etiqueta: '7 o más' }),
+    edad: [
+      { min, max: Math.min(max, 15), etiqueta: '15 o menos' },
+      { min: 16, max: 17, etiqueta: '16–17' },
+      { min: 18, max: 20, etiqueta: '18–20' },
+      { min: 21, max: 24, etiqueta: '21–24' },
+      { min: 25, max: 29, etiqueta: '25–29' },
+      { min: 30, max, etiqueta: '30 o más' },
+    ],
+    indice_activos: [
+      { min: 0, max: 25, etiqueta: '0–25' },
+      { min: 26, max: 50, etiqueta: '26–50' },
+      { min: 51, max: 75, etiqueta: '51–75' },
+      { min: 76, max: 100, etiqueta: '76–100' },
+    ],
+    promedio_pct: [
+      { min: 0, max: 59, etiqueta: 'Menos de 60' },
+      { min: 60, max: 69, etiqueta: '60–69' },
+      { min: 70, max: 79, etiqueta: '70–79' },
+      { min: 80, max: 89, etiqueta: '80–89' },
+      { min: 90, max: 100, etiqueta: '90–100' },
+    ],
+    pct_avance: [
+      { min: 0, max: 25, etiqueta: '0–25' },
+      { min: 26, max: 50, etiqueta: '26–50' },
+      { min: 51, max: 75, etiqueta: '51–75' },
+      { min: 76, max: 100, etiqueta: '76–100' },
+    ],
+    cursos_aprobados: [
+      { min: 0, max: 0, etiqueta: '0' },
+      { min: 1, max: 2, etiqueta: '1–2' },
+      { min: 3, max: 5, etiqueta: '3–5' },
+      { min: 6, max, etiqueta: '6 o más' },
+    ],
+  };
+  const definidos = porCampo[campo];
+  if (definidos)
+    return definidos
+      .filter((r) => r.max >= min && r.min <= max)
+      .map((r) => ({ ...r, min: Math.max(r.min, min), max: Math.min(r.max, max) }));
+  const unicos = Array.from(
+    new Set(ds.columnas[campo].filter((v): v is number => typeof v === 'number')),
+  ).sort((a, b) => a - b);
+  if (unicos.length <= 10) return unicos.map((v) => ({ min: v, max: v, etiqueta: String(v) }));
+  const ancho = Math.max(1, Math.ceil((max - min + 1) / 5));
+  return Array.from({ length: 5 }, (_, i) => {
+    const inicio = min + i * ancho;
+    const fin = Math.min(max, inicio + ancho - 1);
+    return { min: inicio, max: fin, etiqueta: `${inicio}–${fin}` };
+  }).filter((r) => r.min <= r.max);
 }
 
 function formatearConteo(count: number, denominator: number) {

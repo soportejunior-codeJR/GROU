@@ -3,18 +3,18 @@
 @tailwind utilities;
 
 :root {
-  --fuente-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --fuente-sans: 'Century Gothic', CenturyGothic, AppleGothic, ui-sans-serif, system-ui, sans-serif;
   --fuente-mono: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
   --ground: #f6f7f5;
   --surface: #ffffff;
   --ink: #1b2320;
   --ink-2: #4a5551;
   --rule: #dcdfda;
-  --accent: #2a4f6e;
+  --accent: #406C9E;
   --surface-2: #eef1ef;
   --ink-3: #6b7280;
-  --chart-selected: #1f6feb;
-  --chart-rest: #6b7280;
+  --chart-selected: #406C9E;
+  --chart-rest: #a8adb4;
   --warning: #8e3431;
 }
 
@@ -25,11 +25,11 @@
     --ink: #e8ece9;
     --ink-2: #b0bab5;
     --rule: #323a36;
-    --accent: #8fc0e2;
+    --accent: #83B6DD;
     --surface-2: #252d2a;
     --ink-3: #87918c;
-    --chart-selected: #3b8eea;
-    --chart-rest: #717a85;
+    --chart-selected: #83B6DD;
+    --chart-rest: #6e7681;
     --warning: #ef9b95;
   }
 }
@@ -74,6 +74,11 @@ legend { font-weight: 700; font-size: 13px; padding: 0 4px; }
 .check small { color: var(--ink-2); margin-left: auto; }
 .range { display: flex; gap: 6px; align-items: center; }
 .range input { width: 82px; padding: 5px; border: 1px solid var(--rule); border-radius: 3px; background: var(--surface); color: var(--ink); }
+.numeric-options { display: grid; gap: 5px; }
+.range-option { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 3px; background: var(--surface); color: var(--ink); cursor: pointer; text-align: left; font-size: 12px; }
+.range-option small { color: var(--ink-2); margin-left: auto; }
+.range-option-active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+.range-option.check { cursor: default; }
 select { padding: 6px; border: 1px solid var(--rule); border-radius: 3px; background: var(--surface); color: var(--ink); }
 .clear { color: var(--warning); border: 0; background: transparent; font-size: 12px; cursor: pointer; }
 .chart { min-height: 92px; }

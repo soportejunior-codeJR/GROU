@@ -52,9 +52,7 @@ export default function Informe({
         <div>
           <p className="eyebrow">Fundación ROFÉ · Jóvenes creaTIvos</p>
           <h2>Informe de convocatoria</h2>
-          <p className="report-context">
-            {filtrosTexto || 'Sin filtros aplicados'}
-          </p>
+          <p className="report-context">{filtrosTexto || 'Sin filtros aplicados'}</p>
           <p className="muted">
             {indices.length.toLocaleString('es-CO')} de {ds.total.toLocaleString('es-CO')} ·{' '}
             {seleccionadas.toLocaleString('es-CO')} seleccionadas · {porcentaje.replace('.', ',')} %

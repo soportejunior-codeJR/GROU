@@ -59,6 +59,7 @@ export type Filtro =
 
 export type Modo = 'TODAS' | 'AL_MENOS_UNA';
 export type Filtros = Record<string, Filtro>;
+export type RangoNumerico = { min: number; max: number; etiqueta: string };
 
 /** Evalua UN filtro contra UNA fila. */
 function cumple(ds: Dataset, campo: string, filtro: Filtro, i: number): boolean {
@@ -123,9 +124,39 @@ export function filtrar(ds: Dataset, filtros: Filtros, modo: Modo, omitir?: stri
  * Devuelve un arreglo alineado con campos[campo].valores, de modo que la suma de
  * todas sus posiciones es exactamente el tamano del universo vigente (para 'cat';
  * en 'multi' puede superarlo, porque una persona cuenta en varias categorias).
+ * Para un campo numerico, `rangos` cambia el arreglo a los tramos indicados y anade
+ * una ultima posicion para Sin dato.
  */
-export function contarFacetas(ds: Dataset, campo: string, filtros: Filtros, modo: Modo): number[] {
+export function contarFacetas(
+  ds: Dataset,
+  campo: string,
+  filtros: Filtros,
+  modo: Modo,
+  rangos?: RangoNumerico[],
+): number[] {
   const def = ds.campos[campo];
+  if (def.tipo === 'num' && rangos) {
+    const cuenta = new Array<number>(rangos.length + 1).fill(0);
+    const base = filtrar(ds, filtros, modo, campo);
+    const col = ds.columnas[campo];
+    for (let k = 0; k < base.length; k++) {
+      const v = col[base[k]];
+      if (typeof v !== 'number') {
+        cuenta[rangos.length]++;
+        continue;
+      }
+      const rango = rangos.findIndex((r) => v >= r.min && v <= r.max);
+      if (rango >= 0) cuenta[rango]++;
+    }
+    return cuenta;
+  }
+  if (def.tipo === 'num') {
+    const cuenta = [0, 0];
+    const base = filtrar(ds, filtros, modo, campo);
+    const col = ds.columnas[campo];
+    for (let k = 0; k < base.length; k++) cuenta[col[base[k]] == null ? 1 : 0]++;
+    return cuenta;
+  }
   const cuenta = new Array<number>(def.valores?.length ?? 2).fill(0);
   const base = filtrar(ds, filtros, modo, campo);
   const col = ds.columnas[campo];

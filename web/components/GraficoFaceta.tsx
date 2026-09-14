@@ -9,11 +9,16 @@ type Item = { count: number; index: number; label: string };
 export default function GraficoFaceta({ ds, campo, filtros, modo }: Props) {
   const def = ds.campos[campo];
   const counts = useMemo(() => contarFacetas(ds, campo, filtros, modo), [ds, campo, filtros, modo]);
-  const denominator = useMemo(() => filtrar(ds, filtros, modo, campo).length, [ds, campo, filtros, modo]);
+  const denominator = useMemo(
+    () => filtrar(ds, filtros, modo, campo).length,
+    [ds, campo, filtros, modo],
+  );
   const selected = selectedValues(filtros[campo]);
   const labels = def.valores ?? [];
   if (def.tipo === 'num')
-    return <Histograma ds={ds} campo={campo} filtros={filtros} modo={modo} denominator={denominator} />;
+    return (
+      <Histograma ds={ds} campo={campo} filtros={filtros} modo={modo} denominator={denominator} />
+    );
   const visible = counts
     .map((count, index) => ({ count, index, label: labels[index] ?? String(index) }))
     .filter((item) => item.count > 0 || selected.includes(item.index));
@@ -31,7 +36,15 @@ export default function GraficoFaceta({ ds, campo, filtros, modo }: Props) {
   );
 }
 
-function Dona({ items, selected, denominator }: { items: Item[]; selected: number[]; denominator: number }) {
+function Dona({
+  items,
+  selected,
+  denominator,
+}: {
+  items: Item[];
+  selected: number[];
+  denominator: number;
+}) {
   const total = items.reduce((sum, item) => sum + item.count, 0);
   let offset = 0;
   return (
@@ -78,7 +91,15 @@ function Dona({ items, selected, denominator }: { items: Item[]; selected: numbe
   );
 }
 
-function Barras({ items, selected, denominator }: { items: Item[]; selected: number[]; denominator: number }) {
+function Barras({
+  items,
+  selected,
+  denominator,
+}: {
+  items: Item[];
+  selected: number[];
+  denominator: number;
+}) {
   const sorted = [...items].sort((a, b) => b.count - a.count);
   const shown =
     items.length > 20
@@ -130,9 +151,7 @@ function Histograma({ ds, campo, filtros, modo, denominator }: Props & { denomin
   const maxCount = Math.max(...bins.map((bin) => bin.count), 1);
   return (
     <div className="histogram">
-      <p className="chart-note">
-        Rango elegido · {formatCount(base.length, denominator)} filas
-      </p>
+      <p className="chart-note">Rango elegido · {formatCount(base.length, denominator)} filas</p>
       <div className="histogram-bars">
         {bins.map((bin) => (
           <div className="histogram-bin" key={bin.index} title={`${bin.label}: ${bin.count}`}>
