@@ -1257,34 +1257,34 @@ La fuente es el **Manual de Identidad Corporativa 2025 (DE-004-M v03)** y su ext
   reales. El rojo **no** se usa para "no seleccionado": no es un error, es una categoría.
 - **Fondos** — blanco y grises neutros. Nada de degradados detrás de datos.
 
-### Una tensión que hay que decidir, no resolver por cuenta propia
+### Colores de gráfico — DECIDIDO (2026-09-14)
 
-Los gráficos usan hoy `#1f6feb` para lo seleccionado y `#6b7280` para el resto, una pareja
-validada con el script del skill de visualización. **La paleta de marca no tiene un par que pase
-las mismas comprobaciones**, y lo verifiqué uno por uno:
+Samuel confirmó con las personas a quienes va dirigido el panel que **ninguna tiene daltonismo**.
+Eso resuelve la tensión, y conviene entender por qué: la razón que el propio manual da para
+prohibir `#406C9E` en marcas de datos es *"falla contraste CVD"*. Sin esa restricción, la
+prohibición se queda sin motivo.
 
-| Pareja probada | Separación normal | Veredicto |
-|---|---:|---|
-| `#6FA0BC` + gris `#6b7280` | ΔE 13,9 | **Falla** (piso 15) |
-| `#6EA050` + gris `#8a8f96` | ΔE 13,0 | **Falla** |
-| `#406C9E` + gris claro `#a8adb4` | ΔE 23,8 | Pasa, pero el manual prohíbe ese azul para datos |
-| `#C12D4C` + gris `#8a8f96` | ΔE 21,8 | Pasa, pero el rojo significa alerta |
+**Paleta final, validada con el script en ambos modos:**
 
-Los azules de datos de la marca son deliberadamente suaves —pensados para convivir entre varias
-series— y por eso no se despegan de un gris neutro.
+| | Seleccionado | Resto |
+|---|---|---|
+| Claro | `#406C9E` — azul de marca | `#a8adb4` |
+| Oscuro | `#83B6DD` — azul sec. 2 | `#6e7681` |
 
-**Recomendación:** usar `#406C9E` para la marca resaltada y `#a8adb4` para el resto, documentándolo
-como **excepción deliberada y validada**. La regla del manual protege contra usar ese azul entre
-varias series de datos compitiendo; aquí no hay competencia: hay **una** marca resaltada contra un
-fondo neutro, que es un caso distinto. Como el gris queda por debajo de 3:1 contra el fondo, las
-etiquetas de valor van visibles siempre.
+Separación con visión normal: **ΔE 23,8 en claro** y **20,1 en oscuro**, ambas holgadas sobre el
+piso de 15. Las dos son colores oficiales del manual.
 
-**Esto lo decide Samuel, no Codex.** Si prefiere no tocar la regla del manual, la alternativa es
-dejar los colores actuales en los gráficos y aplicar la marca solo a la interfaz — que también es
-una respuesta legítima: el manual gobierna la identidad, y un gráfico daltónico-seguro es un
-requisito funcional que puede convivir con ella.
+**Dos condiciones que vienen con la decisión:**
 
----
+1. **Etiquetas de valor siempre visibles.** El gris claro queda en 2,2:1 contra el fondo, por
+   debajo de 3:1. Con la etiqueta al lado, la porción se identifica aunque el color sea tenue.
+2. **Esto vale para la audiencia de hoy.** Si el panel se abre a más gente, o si un PDF circula
+   fuera del equipo, la suposición deja de sostenerse. Queda anotado aquí para que quien lo lea
+   dentro de seis meses sepa que fue una decisión consciente y no un descuido.
+
+**Lo que NO cambia:** `#6FA0BC` y el verde `#6EA050` siguen sin servir para esto, y no por
+daltonismo — fallaban la separación con **visión normal** (ΔE 13,9 y 13,0). Son azules pensados
+para convivir entre varias series, no para resaltar uno contra un neutro.
 
 ## Aceptación de T14
 
