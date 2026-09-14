@@ -64,7 +64,7 @@ export async function POST(request: Request) {
   const admin = createClient(URL_BASE, SERVICE_KEY);
   const { data: postulaciones, error: postulacionesError } = await admin
     .from('postulaciones')
-    .select('id,id_publico,ciudad,convocatoria')
+    .select('id,id_publico,ciudad_declarada,convocatoria')
     .in('id_publico', ids);
   if (postulacionesError)
     return NextResponse.json({ error: 'No se pudo consultar postulaciones' }, { status: 500 });
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
       datos.apellidos,
       datos.email,
       datos.celular,
-      postulacion.ciudad,
+      postulacion.ciudad_declarada,
       postulacion.convocatoria,
       porResultado.get(postulacion.id) ?? false,
     ];

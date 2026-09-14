@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import {
   clienteAuth,
   authConfigurada,
@@ -48,14 +49,31 @@ export default function Pagina() {
       return;
     }
     let vivo = true;
+    let tokenCargado: string | null = null;
     const auth = clienteAuth();
-    auth.auth.getSession().then(async ({ data }) => {
-      const sesion = data.session;
+
+    // NUNCA llamar location.reload() aquí. supabase-js emite SIGNED_IN no solo
+    // cuando alguien inicia sesión, sino también al restaurar la sesión desde el
+    // almacenamiento y al refrescar el token — o sea, en cada carga de página. Un
+    // reload en ese handler se realimenta: carga -> SIGNED_IN -> reload -> carga...
+    // La página titila, los chunks nunca terminan de bajar y no hay ningún error
+    // en consola porque técnicamente nada falla. Todo se resuelve con estado.
+    const aplicar = async (sesion: Session | null) => {
       if (!vivo) return;
       const email = sesion?.user?.email ?? null;
       setCorreo(email);
       setCargando(false);
-      if (!sesion || !correoPermitido(email)) return;
+
+      if (!sesion || !correoPermitido(email)) {
+        setDatos(null);
+        tokenCargado = null;
+        return;
+      }
+      // Un refresco de token trae un access_token nuevo para la misma sesión: no
+      // hay que volver a descargar 2,9 MB por eso.
+      if (tokenCargado === sesion.access_token) return;
+      tokenCargado = sesion.access_token;
+
       try {
         const r = await fetch('/api/datos', {
           headers: { Authorization: `Bearer ${sesion.access_token}` },
@@ -65,14 +83,11 @@ export default function Pagina() {
       } catch (e) {
         if (vivo) setError(e instanceof Error ? e.message : 'No se pudo cargar el dataset');
       }
-    });
-    const { data: sub } = auth.auth.onAuthStateChange((evento) => {
-      /* OJO: supabase-js dispara INITIAL_SESSION apenas uno se suscribe. Recargar en CUALQUIER evento mete a la pagina en un bucle infinito de recargas y los chunks nunca terminan de bajar. Solo recargar cuando el usuario realmente entra o sale. */ if (
-        evento === 'SIGNED_IN' ||
-        evento === 'SIGNED_OUT'
-      )
-        location.reload();
-    });
+    };
+
+    auth.auth.getSession().then(({ data }) => aplicar(data.session));
+    const { data: sub } = auth.auth.onAuthStateChange((_evento, sesion) => aplicar(sesion));
+
     return () => {
       vivo = false;
       sub.subscription.unsubscribe();
@@ -87,7 +102,7 @@ export default function Pagina() {
   if (!authConfigurada())
     return (
       <Marco>
-        <p style={{ color: '#8e3431' }}>{error}</p>
+        <p className="error-text">{error}</p>
       </Marco>
     );
   if (!correo)
@@ -96,7 +111,7 @@ export default function Pagina() {
         <p className="muted">
           Este panel contiene datos personales y está limitado a cuentas autorizadas.
         </p>
-        <button onClick={iniciarSesionGoogle} style={button}>
+        <button onClick={iniciarSesionGoogle} className="button button-primary">
           Entrar con Google
         </button>
       </Marco>
@@ -107,16 +122,16 @@ export default function Pagina() {
         <p className="muted">
           La cuenta <b>{correo}</b> no está autorizada.
         </p>
-        <button onClick={cerrarSesion} style={button}>
+        <button onClick={cerrarSesion} className="button button-primary">
           Salir
         </button>
       </Marco>
     );
   return (
     <Marco>
-      {error && <p style={{ color: '#8e3431' }}>{error}</p>}
+      {error && <p className="error-text">{error}</p>}
       {datos && <Explorador ds={datos} />}
-      <button onClick={cerrarSesion} style={{ ...button, marginTop: 28 }}>
+      <button onClick={cerrarSesion} className="button button-primary logout-button">
         Salir
       </button>
     </Marco>
@@ -167,6 +182,39 @@ function Explorador({ ds }: { ds: Dataset }) {
     a.click();
     URL.revokeObjectURL(a.href);
   };
+  const exportarPii = async () => {
+    const total = indices.length;
+    if (total > 5000) {
+      window.alert('Filtra más: el máximo por exportación es de 5.000 filas.');
+      return;
+    }
+    const confirmado = window.confirm(
+      `Vas a exportar ${total.toLocaleString('es-CO')} filas con estos campos: id_publico, cédula, nombres, apellidos, email, celular, ciudad, convocatoria y seleccionado. ¿Continuar?`,
+    );
+    if (!confirmado) return;
+    const { data } = await clienteAuth().auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) {
+      window.alert('La sesión expiró. Vuelve a iniciar sesión.');
+      return;
+    }
+    const response = await fetch('/api/exportar-pii', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: Array.from(indices, (i) => i + 1), filtros }),
+    });
+    if (!response.ok) {
+      const detalle = await response.json().catch(() => null);
+      window.alert(detalle?.error ?? `No se pudo exportar (${response.status}).`);
+      return;
+    }
+    const blob = await response.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'postulaciones_con_datos_personales.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
   const used: Set<string> = new Set(GROUPS.flatMap(([, fields]) => fields));
   const extra = Object.keys(ds.campos).filter((c) => !used.has(c) && c !== 'id_publico');
   return (
@@ -176,15 +224,16 @@ function Explorador({ ds }: { ds: Dataset }) {
         totalVigente={indices.length}
         seleccionadas={selected}
         exportar={exportar}
+        exportarPii={exportarPii}
       />
-      {ds.es_ejemplo && <p style={{ color: '#8e3431' }}>Advertencia: dataset de ejemplo.</p>}
+      {ds.es_ejemplo && <p className="error-text">Advertencia: dataset de ejemplo.</p>}
       <div className="toolbar">
         <button
           onClick={() => {
             setFiltros({});
             setModo('TODAS');
           }}
-          style={secondary}
+          className="button button-secondary"
         >
           Limpiar filtros
         </button>
@@ -232,7 +281,7 @@ function Explorador({ ds }: { ds: Dataset }) {
             ))}
           </div>
           {extra.length > 8 && (
-            <button onClick={() => setTodos(!todos)} style={secondary}>
+            <button onClick={() => setTodos(!todos)} className="button button-secondary">
               {todos ? 'Mostrar menos' : `Mostrar los ${extra.length - 8} restantes`}
             </button>
           )}
@@ -257,24 +306,6 @@ function csv(v: string | number | boolean | null) {
   const s = v === null ? '' : String(v);
   return `"${s.replaceAll('"', '""')}"`;
 }
-const button: React.CSSProperties = {
-  background: 'var(--accent)',
-  color: 'var(--surface)',
-  border: 'none',
-  borderRadius: 4,
-  padding: '10px 18px',
-  fontSize: 15,
-  cursor: 'pointer',
-};
-const secondary: React.CSSProperties = {
-  background: 'transparent',
-  color: 'var(--accent)',
-  border: '1px solid var(--accent)',
-  borderRadius: 4,
-  padding: '8px 12px',
-  fontSize: 13,
-  cursor: 'pointer',
-};
 function Marco({ children }: { children: React.ReactNode }) {
   return (
     <main className="shell">

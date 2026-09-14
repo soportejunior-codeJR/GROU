@@ -5,14 +5,16 @@ export default function Encabezado({
   totalVigente,
   seleccionadas,
   exportar,
+  exportarPii,
 }: {
   ds: Dataset;
   totalVigente: number;
   seleccionadas: number;
   exportar: () => void;
+  exportarPii: () => void;
 }) {
   return (
-    <div className="topline">
+    <header className="topline">
       <div>
         <p className="eyebrow">Fundación ROFÉ · JÓVENES creaTIvos</p>
         <h1>Explorador de convocatoria</h1>
@@ -25,19 +27,14 @@ export default function Encabezado({
           % (M/N)
         </p>
       </div>
-      <button onClick={exportar} style={secondary}>
-        Exportar CSV sin PII
-      </button>
-    </div>
+      <div className="export-actions">
+        <button onClick={exportar} className="button button-secondary">
+          Exportar CSV sin PII
+        </button>
+        <button onClick={exportarPii} className="button button-warning">
+          Exportar con datos personales
+        </button>
+      </div>
+    </header>
   );
 }
-
-const secondary: React.CSSProperties = {
-  background: 'transparent',
-  color: 'var(--accent)',
-  border: '1px solid var(--accent)',
-  borderRadius: 4,
-  padding: '8px 12px',
-  fontSize: 13,
-  cursor: 'pointer',
-};
