@@ -1,5 +1,9 @@
 # Handoff para Codex — 2026-09-11
 
+> **2026-09-14 — Para terminar el proyecto, ejecuta `PLAN-CIERRE-CODEX.md`.** Es el único plan
+> vigente, de corrido y por fases. Este archivo queda como referencia: contratos, reglas y el
+> porqué de cada decisión. El plan cita secciones de aquí (`§T12`, `§T17`).
+
 Todo lo que necesitas para avanzar sin preguntar. Los números de este documento están
 **verificados contra las fuentes reales**, no estimados: si tu salida no cuadra con ellos,
 la salida está mal, no el documento.
@@ -1508,3 +1512,118 @@ colores apagados = solo dan variedad.
 - [ ] `prefers-reduced-motion` respetado
 - [ ] El informe imprimible de T13 sigue en fondo blanco, sin fondo animado
 - [ ] Claro y oscuro verificados en ambos
+
+---
+
+# T17 — Los gráficos también filtran (clic en una porción = marcar esa opción)
+
+Pedido de Samuel, 2026-09-14. Decidido: **opción A**. Un clic en una porción, barra o tramo del
+gráfico hace **exactamente lo mismo** que marcar la casilla o el botón de esa opción en la
+tarjeta. No hay estado nuevo, no hay segunda población.
+
+La opción B (el clic crea un segundo grupo para comparar lado a lado) **queda fuera de esta
+tarea**: es la vista Distribuciones, TOC-51.
+
+Hacer **después de T12 §1 (edad)**: el histograma de este T17 usa los rangos del filtro, y con la
+edad yendo de -884 a 2022 los rangos no sirven.
+
+## Por qué es chico: el estado ya es uno solo
+
+`GraficoFaceta` ya recibe los mismos `filtros` y `modo` que la tarjeta y cuenta con la misma
+`contarFacetas()`. Lo único que le falta es poder **escribir** el filtro, no solo leerlo. Todo lo
+demás —conteo en vivo, los otros gráficos, la URL, "× quitar", los exports— ya depende de ese
+estado y se actualiza solo.
+
+## 1. Cableado
+
+- `GraficoFaceta` recibe una prop **opcional** `cambiar?: (campo: string, f: Filtro | null) => void`
+- `FiltroCard.tsx:145` se la pasa
+- `Informe.tsx:74` **no** se la pasa → el gráfico queda de solo lectura: sin cursor de mano, sin
+  `role="button"`, sin foco. Un PDF no filtra
+- Al hacer clic la tarjeta **se queda en modo gráfico**; no vuelve a la lista
+
+## 2. Una sola lógica de alternar — no dupliques la de la casilla
+
+Hoy la lógica de marcar/desmarcar vive dentro de `Control` (`FiltroCard.tsx:323-330` para
+cat/multi, `:213-220` para rangos). Sácala a funciones en `lib/dataset.ts` y úsalas **desde los dos
+sitios**:
+
+| Tipo | Clic sobre una opción | Clic sobre la opción ya activa |
+|---|---|---|
+| `cat` / `multi` | agrega el índice a `valores` | lo quita; si `valores` queda vacío → `null` |
+| `bool` | `{ tipo: 'bool', valor }` | `null` |
+| `num` (tramo) | `{ tipo: 'num', min, max, incluirSinDato: false }` del tramo | `null` |
+| `num` (barra "Sin dato") | alterna `incluirSinDato` sobre el filtro actual | — |
+
+Si la casilla y el gráfico usan funciones distintas, tarde o temprano se desalinean. Una sola.
+
+## 3. Lo que hay que corregir para que el clic tenga sentido
+
+### 3.1 Histograma: los tramos del gráfico tienen que ser los del filtro
+
+`Histograma` (`GraficoFaceta.tsx:168`) arma 8 tramos iguales entre `min` y `max`. Esos tramos no
+corresponden a ningún filtro, así que un clic no podría traducirse en nada honesto.
+
+- Mover `rangosNumericos()` de `FiltroCard.tsx` a `lib/` y exportarla
+- El histograma usa esos rangos y `contarFacetas(ds, campo, filtros, modo, rangos)`, que ya
+  devuelve la última posición para **Sin dato** → dibujar esa barra también
+- Clic en un tramo = lo mismo que el botón de rango de T14
+
+### 3.2 Campos Sí/No: hoy se ven como "0" y "1"
+
+`bool` no tiene `valores`, así que la dona cae en `String(index)`. Etiquetas `No` / `Sí`, y
+`selectedValues()` tiene que reconocer también el filtro `bool` (hoy solo mira cat/multi, por eso
+un Sí/No filtrado nunca se resalta).
+
+### 3.3 La selección tiene que verse aunque el campo tenga color semántico
+
+`itemStyle()` devuelve el color semántico **antes** de mirar si está seleccionado. En
+`seleccionado`, `retirado`, `estado_final` y `fase_max_alcanzada` el azul de seleccionado nunca
+aparece: se hace clic y no se ve que pasó nada.
+
+No toques los colores (T15/T16 se mantienen). Marca la selección **sin color**:
+
+- Si el campo tiene filtro activo, las opciones **no** seleccionadas bajan a opacidad ~0,35
+- La seleccionada: opacidad plena + etiqueta en negrita; en la dona, trazo un poco más grueso;
+  en barras, contorno de 2 px
+- Sin filtro activo en ese campo, todo se ve como hoy
+
+### 3.4 "Otras" no es un valor
+
+La barra agregada de `Barras` (`index: -1`, más de 20 opciones) **no se puede pulsar**. Tooltip:
+"Agrupa N opciones — usa la lista para elegir una". Nunca la conviertas en filtro.
+
+## 4. Lo que NO se cambia — la trampa de la cascada
+
+Los conteos del gráfico siguen saliendo de la **faceta** (todos los filtros menos el del propio
+campo). Si se cambia a contar sobre el subconjunto final, al pulsar "Cartagena" la dona queda
+100 % Cartagena, las demás ciudades desaparecen y ya no se puede sumar "Cali" con otro clic.
+El comportamiento correcto: la porción pulsada se resalta y **las demás siguen ahí**.
+
+## 5. Accesibilidad y descubribilidad
+
+- Barras: `<button type="button" aria-pressed>` con `aria-label` = "Cartagena: 312 (4,1 %)"
+- Dona: las porciones son finas, así que **la leyenda es el objetivo principal** — cada etiqueta
+  de `chart-labels` es un `<button aria-pressed>`. La porción SVG también responde al clic, pero
+  la leyenda es la que lleva el foco de teclado (no dupliques paradas de tabulación)
+- Enter y Espacio alternan; foco visible con el mismo `outline` que `.chart-toggle`
+- `chart-note`: "Conteo sobre los demás filtros · clic para filtrar"
+- Con `modo === 'AL_MENOS_UNA'`, la nota dice además **"cada clic suma personas"**: en ese modo
+  un filtro nuevo amplía la población en vez de reducirla, y sin aviso parece un error
+
+## Aceptación de T17
+
+- [ ] Clic en una porción, barra o etiqueta de leyenda = marcar esa opción en la lista; volver a
+  la lista la muestra marcada, y viceversa
+- [ ] Segundo clic sobre la misma opción la desmarca; quitar la última deja el campo sin filtro
+- [ ] Casilla y gráfico usan **la misma** función de alternar (una sola en `lib/dataset.ts`)
+- [ ] Al filtrar "Cartagena" desde la dona, las demás ciudades siguen visibles y se puede sumar otra
+- [ ] Histograma con los tramos de `rangosNumericos()` + barra "Sin dato"; clic = botón de rango
+- [ ] Campos Sí/No etiquetados y resaltados cuando están filtrados
+- [ ] La selección se nota en `seleccionado` y `retirado` sin cambiar sus colores semánticos
+- [ ] "Otras" no filtra
+- [ ] El informe imprimible de T13 no responde a clics
+- [ ] URL, contador de "filtros activos", "× quitar" y ambos exports reflejan el filtro puesto
+  desde el gráfico
+- [ ] Todo operable con teclado; aviso de modo "al menos una" visible
+- [ ] `npm run build` limpio; claro y oscuro verificados
