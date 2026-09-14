@@ -15,6 +15,27 @@ const RAIZ = join(AQUI, '..');
 const SALIDA = join(RAIZ, 'data', 'postulaciones.json');
 const EJEMPLO = join(RAIZ, 'data', 'postulaciones.ejemplo.json');
 
+// Cargar .env.local a mano. Next inyecta las variables en SU build, pero este
+// script corre como `node scripts/...` en el prebuild, fuera de ese contexto: sin
+// esto, un `npm run build` local no encuentra las credenciales, cae al archivo de
+// ejemplo y PISA el dataset real de 24.203 filas con 300 sinteticas. En Vercel no
+// se nota porque alli las variables vienen del entorno de la plataforma.
+function cargarEnvLocal() {
+  for (const archivo of ['.env.local', '.env']) {
+    const ruta = join(RAIZ, archivo);
+    if (!existsSync(ruta)) continue;
+    for (const linea of readFileSync(ruta, 'utf8').split(/\r?\n/)) {
+      const l = linea.trim();
+      if (!l || l.startsWith('#') || !l.includes('=')) continue;
+      const i = l.indexOf('=');
+      const k = l.slice(0, i).trim();
+      const v = l.slice(i + 1).trim();
+      if (!(k in process.env)) process.env[k] = v;
+    }
+  }
+}
+cargarEnvLocal();
+
 const URL_BASE = process.env.CONV_SUPABASE_URL;
 const KEY = process.env.CONV_SUPABASE_SERVICE_ROLE_KEY;
 const VISTA = 'v_analisis_postulaciones';
@@ -34,7 +55,29 @@ const BOOLEANOS = new Set([
 const MULTIVALOR = new Set(['segmentos', 'ocupaciones', 'como_se_entero']);
 const OMITIR = new Set(['id_publico']);
 
+/** ¿Ya hay un dataset real en disco? */
+function hayDatasetReal() {
+  if (!existsSync(SALIDA)) return false;
+  try {
+    const d = JSON.parse(readFileSync(SALIDA, 'utf8'));
+    return d && d.es_ejemplo === false && d.total > 0;
+  } catch {
+    return false;
+  }
+}
+
 function usarEjemplo(motivo) {
+  // NUNCA pisar un dataset real con el de ejemplo. Si la descarga falla —un 504 de
+  // Supabase alcanza— y aqui se escribiera el ejemplo igual, un `npm run build`
+  // local cambiaria 24.203 filas por 300 sin que nadie lo note hasta abrir el panel.
+  // Ante la duda se conserva lo que ya hay: un dataset viejo es recuperable, uno
+  // borrado no.
+  if (hayDatasetReal()) {
+    console.warn(`[dataset] ${motivo}`);
+    console.warn('[dataset] Se CONSERVA el dataset real que ya estaba en disco. No se pisa nada.');
+    console.warn('[dataset] Para regenerarlo cuando Supabase responda: npm run dataset');
+    return;
+  }
   console.warn(`[dataset] ${motivo} — se usa data/postulaciones.ejemplo.json`);
   const ej = JSON.parse(readFileSync(EJEMPLO, 'utf8'));
   ej.es_ejemplo = true;
