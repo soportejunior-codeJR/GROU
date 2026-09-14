@@ -720,3 +720,73 @@ contraste de texto pase, y que los colores del gráfico sean los validados de ar
   muestra solo colombianos
 - Claro y oscuro verificados en ambos, no solo en uno
 - `npm run build` en verde
+
+---
+
+# T11 — Verificador externo de acceso
+
+## El fallo que motiva esto
+
+Durante horas dimos el despliegue por bueno porque desde el navegador de Samuel el panel cargaba.
+Lo que se veía era el efecto de una **cookie de sesión de Vercel**: para cualquier otra persona —y
+para él mismo desde el teléfono— la raíz, `/api/datos` y todo lo demás devolvían 401.
+
+```
+GET /                        401  {"protection":{"auto_vercel_auth_redirect":true,…}}
+GET /api/datos               401  (cuerpo de Vercel, NO el nuestro)
+GET /data/postulaciones.json 401
+```
+
+Causa: `Settings → Deployment Protection → Vercel Authentication` estaba en **All Deployments**, que
+exige cuenta de Vercel y pertenencia al equipo antes de llegar a nuestro login.
+
+**Ese error se repite solo.** Revisar desde el navegador de uno es lo natural, y es exactamente lo
+que lo esconde. La corrección de la configuración la hace Samuel en el panel de Vercel — no es
+delegable en código. Lo que sí se puede automatizar es **no volver a engañarse**.
+
+## Lo que hay que construir
+
+`web/scripts/verificar-acceso.mjs`, ejecutable con `npm run verificar-acceso`. Sin dependencias
+nuevas: `fetch` nativo alcanza.
+
+Golpea la URL de producción (`https://grou-tvsk.vercel.app`, configurable con `PANEL_URL`) con
+**cabeceras limpias** — nada de cookies, nada de credenciales — y comprueba:
+
+| # | Comprobación | Esperado |
+|---|---|---|
+| 1 | `GET /` | 200, y el HTML contiene `Panel de Convocatoria` |
+| 2 | **El 401 es nuestro, no de Vercel** | el cuerpo trae `Sesion requerida`; si trae `"protection"` o `auto_vercel_auth_redirect`, **falla y dilo con esas palabras** |
+| 3 | `GET /api/datos` sin sesión | 401 |
+| 4 | `POST /api/exportar-pii` sin sesión, cuerpo `{"ids":[1]}` | 401 |
+| 5 | `GET /data/postulaciones.json` | 404 — el dataset nunca es público |
+| 6 | `GET /_next/static/css/...` o la raíz | el CSS carga (un panel sin estilos ya pasó una vez) |
+
+La 2 es la que faltaba y la razón de ser del script: **un 401 no basta, hay que saber quién lo
+puso.** Un 401 de Vercel y uno nuestro significan cosas opuestas — el primero dice "nadie puede
+entrar", el segundo dice "la protección funciona".
+
+## Salida
+
+Una línea por comprobación con `OK` o `FALLA`, y un resumen final. **Sale con código ≠ 0 si algo
+falla**, para poder encadenarlo.
+
+Cuando la 2 falle, el mensaje debe decir explícitamente qué hacer:
+
+```
+FALLA  El 401 lo pone Vercel, no la app.
+       Settings → Deployment Protection → Vercel Authentication
+       debe estar en "Only Preview Deployments" o desactivado.
+```
+
+## Aceptación
+
+- [ ] `npm run verificar-acceso` corre y sale ≠ 0 cuando algo falla
+- [ ] Distingue el 401 de Vercel del nuestro, con el mensaje de arriba
+- [ ] Documentado en el README: **correrlo después de cada cambio de configuración de Vercel**
+- [ ] Con la configuración actual (protección activa) el script **falla** — esa es la prueba de que sirve
+- [ ] Cuando Samuel la corrija, el script pasa entero
+
+## Lo que este script NO reemplaza
+
+Abrir el panel desde un teléfono, fuera de la red del portátil. El script comprueba que la puerta
+está abierta; solo una persona comprueba que adentro se ve bien.
