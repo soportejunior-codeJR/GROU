@@ -9,7 +9,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "dataset": "node scripts/construir-dataset.mjs"
+    "dataset": "node scripts/construir-dataset.mjs",
+    "verificar-acceso": "node scripts/verificar-acceso.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",

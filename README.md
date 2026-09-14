@@ -71,6 +71,16 @@ npm run dataset                          # genera data/postulaciones.json
 npm run dev
 ```
 
+Después de cada cambio de configuración de Vercel, verifica el acceso externo con:
+
+```bash
+cd web
+npm run verificar-acceso
+```
+
+El verificador usa cabeceras limpias, sin cookies ni credenciales, y distingue la protección de
+Vercel del login de la aplicación.
+
 Sin credenciales el panel igual arranca: usa `web/data/postulaciones.ejemplo.json` y lo avisa
 en pantalla.
 
