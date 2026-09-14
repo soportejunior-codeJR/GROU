@@ -96,6 +96,39 @@ def main():
                            extra={"programa": "eq.jc"})
     if len(cohort) != 832:
         raise SystemExit(f"canon JC esperado 832, recibido {len(cohort)}")
+    egresados_2025 = panel.get_all(
+        "postulantes_jc", "cedula,nombre,participant_id,promo_year,rol", order="cedula",
+        extra={"promo_year": "eq.2025", "rol": "eq.EGRESADO"})
+    retirados_2025 = panel.get_all(
+        "retiros", "cedula,participant_id,cohorte,programa", order="cedula",
+        extra={"cohorte": "eq.2025", "programa": "eq.jc"})
+    if len(egresados_2025) != 560 or len(retirados_2025) != 163:
+        raise SystemExit(f"roster 2025 inesperado: egresados={len(egresados_2025)} retirados={len(retirados_2025)}")
+    cedulas_egresados = {cedula_norm(x["cedula"]) for x in egresados_2025}
+    cedulas_retirados = {cedula_norm(x["cedula"]) for x in retirados_2025}
+    if cedulas_egresados & cedulas_retirados:
+        raise SystemExit("roster 2025 no es disjunto: hay cédulas en egresados y retiros")
+    cohort_2025 = [
+        {**x, "cohorte": "2025", "retirado": False, "participant_id": x.get("participant_id")}
+        for x in egresados_2025
+    ] + [
+        {**x, "nombre": None, "cohorte": "2025", "retirado": True,
+         "participant_id": x.get("participant_id")}
+        for x in retirados_2025
+    ]
+    roster = cohort + cohort_2025
+    postulantes_jc = panel.get_all(
+        "postulantes_jc", "cedula,participant_id,promo_year", order="cedula")
+    participant_by_cedula = {}
+    for x in postulantes_jc:
+        key = cedula_norm(x.get("cedula"))
+        if key and x.get("participant_id"):
+            participant_by_cedula.setdefault((x.get("promo_year"), key), x["participant_id"])
+    metrics = panel.get_all(
+        "participant_metrics",
+        "participant_id,total_cursos_inscrito,total_cursos_completado,porcentaje_promedio",
+        order="participant_id")
+    metrics_by_participant = {x["participant_id"]: x for x in metrics}
     posts = conv.get_all("postulaciones", "id,id_publico,convocatoria,pais,ciudad_norm,enviado_en,fuente,fila_origen",
                          order="id")
     if len(posts) != 24203:
@@ -104,19 +137,17 @@ def main():
     pii = {x["postulacion"]["id_publico"]: x["pii"] for x in items}
     payload_by_id = {x["postulacion"]["id_publico"]: x["postulacion"] for x in items}
 
-    # Regla 0: el índice de candidatos solo contiene convocatoria 2026.
+    # Cada canon solo cruza contra su propia convocatoria: 2026 con 2026 y 2025 con 2025.
     by_ced, by_name = defaultdict(list), defaultdict(list)
     for item in items:
         p = item["postulacion"]
-        if p["convocatoria"] != "2026":
-            continue
         key = (p["convocatoria"], p["pais"], p["fuente"], p["fila_origen"])
         db = by_key[key]
         candidate = {"item": item, "db": db, "name": pii[p["id_publico"]].get("nombre_norm")}
         if pii[p["id_publico"]].get("cedula_norm"):
-            by_ced[pii[p["id_publico"]]["cedula_norm"]].append(candidate)
+            by_ced[(p["convocatoria"], pii[p["id_publico"]]["cedula_norm"])].append(candidate)
         if candidate["name"]:
-            by_name[candidate["name"]].append(candidate)
+            by_name[(p["convocatoria"], candidate["name"])].append(candidate)
 
     chosen, duplicate_rows, resolutions = {}, [], []
     assigned_posts = set()
@@ -153,7 +184,7 @@ def main():
     matched_cohort = set()
     for person in cohort:
         key = cedula_norm(person["cedula"])
-        candidates = by_ced.get(key, [])
+        candidates = by_ced.get(("2026", key), [])
         if candidates:
             # Si el guardarraíl rechaza el grupo, se reintenta por nombre en la
             # segunda fase; no se convierte prematuramente en un fallo.
@@ -161,18 +192,28 @@ def main():
                 matched_cohort.add(key)
     remaining = [person for person in cohort if cedula_norm(person["cedula"]) not in matched_cohort]
     for person in remaining:
-        candidates = [c for c in by_name.get(nombre_norm(person["nombre"]), [])
+        candidates = [c for c in by_name.get(("2026", nombre_norm(person["nombre"])), [])
                       if c["item"]["postulacion"]["id_publico"] not in assigned_posts]
         if resolve(candidates, person, "nombre") is None:
             unresolved.append((person, "nombre_ambiguo_o_sin_match"))
         else:
             matched_cohort.add(("nombre", nombre_norm(person["nombre"])))
 
-    if unresolved or len(chosen) != 832 or len(duplicate_rows) != 6:
+    matched_2025 = 0
+    for person in cohort_2025:
+        candidates = by_ced.get(("2025", cedula_norm(person["cedula"])), [])
+        if not candidates:
+            continue
+        if resolve(candidates, person, "cedula") is not None:
+            matched_2025 += 1
+    print(f"T5: roster 2025 cruzado={matched_2025}/{len(cohort_2025)}")
+
+    expected_selected = len(cohort) + matched_2025
+    if unresolved or len(chosen) != expected_selected or len(duplicate_rows) < 6:
         with (OUT / "matches_ambiguos.csv").open("w", encoding="utf-8", newline="") as fh:
             writer = csv.writer(fh); writer.writerow(["tipo", "detalle"])
             writer.writerows([[kind, "canon_sin_resolver"] for _, kind in unresolved])
-        raise SystemExit(f"T5 FALLA: seleccionadas={len(chosen)} duplicados={len(duplicate_rows)} "
+        raise SystemExit(f"T5 FALLA: seleccionadas={len(chosen)}/{expected_selected} duplicados={len(duplicate_rows)} "
                          f"resoluciones={len(resolutions)} sin_resolver={len(unresolved)}")
 
     # Documenta las seis resoluciones, incluidas las cinco por cédula y una por nombre.
@@ -196,18 +237,38 @@ def main():
     selected_ids = [r["postulacion_id"] for r in result if r["seleccionado"]]
     conv.delete("resultado_programa", selected_ids)
     programs = []
-    for person in cohort:
-        candidates = by_ced.get(cedula_norm(person["cedula"]), [])
+    for person in roster:
+        candidates = by_ced.get((person["cohorte"], cedula_norm(person["cedula"])), [])
         if not candidates:
-            candidates = by_name.get(nombre_norm(person["nombre"]), [])
+            candidates = by_name.get((person["cohorte"], nombre_norm(person.get("nombre"))), [])
+        candidates = [c for c in candidates if c["item"]["postulacion"]["id_publico"] in chosen]
+        if not candidates:
+            continue
         winner = latest(candidates)
         db = winner["db"]
+        participant_id = person.get("participant_id") or participant_by_cedula.get(
+            (person.get("cohorte"), cedula_norm(person["cedula"]))
+        )
+        metric = (metrics_by_participant.get(participant_id)
+                  if participant_id and not person.get("retirado") else None)
         programs.append({"postulacion_id": db["id"], "cedula_canon": cedula_norm(person["cedula"]),
                          "cohorte": person.get("cohorte"), "retirado": person.get("retirado"),
-                         "fecha_retiro": None, "motivo_retiro": None, "pct_avance": None,
-                         "cursos_inscritos": None, "cursos_aprobados": None, "estado_final": None})
+                         "fecha_retiro": None, "motivo_retiro": None,
+                         "pct_avance": metric.get("porcentaje_promedio") if metric else None,
+                         "cursos_inscritos": metric.get("total_cursos_inscrito") if metric else None,
+                         "cursos_aprobados": metric.get("total_cursos_completado") if metric else None,
+                         "estado_final": None})
+    metric_2025 = sum(1 for person in [x for x in cohort_2025 if not x.get("retirado")]
+                      if person.get("participant_id") in metrics_by_participant)
+    metric_2026 = sum(1 for person in cohort
+                      if participant_by_cedula.get(("2026", cedula_norm(person["cedula"])))
+                      in metrics_by_participant)
+    if (metric_2025, metric_2026) != (559, 776):
+        raise SystemExit(f"T5 FALLA: cobertura_metricas_2025={metric_2025}/560 "
+                         f"cobertura_metricas_2026={metric_2026}/832")
     conv.upsert("resultado_programa", programs, "postulacion_id")
-    print(f"T5 OK: seleccionadas={len(chosen)} duplicados={len(duplicate_rows)} universo={len(result)}")
+    print(f"T5 OK: seleccionadas={len(chosen)} (2026={len(cohort)} 2025={matched_2025}) "
+          f"duplicados={len(duplicate_rows)} universo={len(result)}")
     return 0
 
 

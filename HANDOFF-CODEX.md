@@ -136,10 +136,11 @@ subcontaría todas las ciudades fuera de Colombia. Panamá aparecería partida e
    `Ciudad de Panamá` ≡ `Panamá` — son la misma ciudad y hoy están separadas.
 3. **Valores que no son ciudades:** los nombres de país ya quedaron en `sin_dato`. **Falta un
    caso:** 6 filas traen una cédula o un teléfono en el campo de ciudad y hoy son 6 "ciudades"
-   canónicas — `0952527794`, `0952900447`, `1752130409 0`, `4835951 0`, `507 0`, `5 0`. Van a
+   canónicas — seis valores que son cédulas o teléfonos, uno de ellos con un `.0` pegado
+   por haberse leído como float. Van a
    `sin_dato` con la misma regla. Criterio: si al quitar dígitos y signos quedan 1 letra o menos,
    no es una ciudad.
-   (De paso, `1752130409 0` delata que ese valor entró como float `1752130409.0` — vale la pena
+   (De paso, ese `.0` final delata que el valor entró como float — vale la pena
    revisar que no haya más columnas leídas como número en vez de texto.)
 4. **La cola de ciudades con una sola fila** déjala como está, pero escríbela a
    `etl/salida/ciudades_cola_larga.csv` para revisión humana posterior. Muchas son municipios
@@ -252,16 +253,19 @@ convocatoria no fueron seleccionadas.
 Cinco cédulas del canon tienen **dos** postulaciones en 2026 (envíos duplicados: mismo nombre,
 misma ciudad, con días de diferencia):
 
-| Cédula | Postulaciones | Ciudad |
+| Caso | Postulaciones | Ciudad |
 |---|---|---|
-| 1025660370 | id 20390 (10-feb) · id 21860 (15-feb) | Medellín |
-| 1028885979 | id 16759 (28-ene) · id 21466 (13-feb) | Bogotá D.C. |
-| 1094050605 | id 21243 · id 21246 (ambas 12-feb) | Bogotá D.C. |
-| 1141115465 | id 11966 (26-ene) · id 20724 (11-feb) | Bogotá D.C. |
-| 1143954132 | id 11509 (23-ene) · id 21877 (15-feb) | Cali |
+| A | id 20390 (10-feb) · id 21860 (15-feb) | Medellín |
+| B | id 16759 (28-ene) · id 21466 (13-feb) | Bogotá D.C. |
+| C | id 21243 · id 21246 (**ambas 12-feb**) | Bogotá D.C. |
+| D | id 11966 (26-ene) · id 20724 (11-feb) | Bogotá D.C. |
+| E | id 11509 (23-ene) · id 21877 (15-feb) | Cali |
+
+*(Las cédulas no se escriben aquí: el repo es público. Se identifican por `id_publico`,
+que no revela a la persona. Para verlas, consulta `postulaciones_pii` con la service key.)*
 
 **Regla:** `seleccionado = true` va en la **más reciente por `enviado_en`**; en empate, la de
-**mayor `id_publico`** (caso 1094050605, ambas del 12-feb). Las demás quedan `seleccionado = false`
+**mayor `id_publico`** (caso C, con las dos del 12-feb). Las demás quedan `seleccionado = false`
 y con `duplicado_de = id_publico` de la elegida.
 
 Ninguna fila se descarta — se marca, como manda la regla 2 del §3. Y así el test 7 sigue dando
@@ -272,9 +276,9 @@ exactamente 832.
 Un solo caso, ya acotado a 2026:
 
 ```
-canon: cedula 57951440  'Navarro Alvarez Rodrigo'
-  id 23989  cedula 57951430  2025-11-26  Paysandú  (UY, convocatoria 2026)
-  id 24012  cedula 56951430  2025-12-05  Paysandú  (UY, convocatoria 2026)
+canon: cedula C  (una persona del canon, Paysandú)
+  id 23989  cedula C con 1 digito distinto   2025-11-26  Paysandú  (UY, conv. 2026)
+  id 24012  cedula C con 2 digitos distintos  2025-12-05  Paysandú  (UY, conv. 2026)
 ```
 
 Misma convocatoria, misma ciudad, mismo `nombre_norm`, y las dos cédulas difieren del canon en uno
@@ -804,7 +808,8 @@ está roto"**: tres de los problemas reportados no lo son, y corregirlos romper�
 
 ### `aplico_antes_jc` / `fue_beneficiario_antes` están bien
 
-Verificado contra la base para el caso reportado (cédula `1043450120`, Jaime Luis Olivero):
+Verificado contra la base para el caso que reportó el cliente (una postulación de
+Barranquilla, convocatoria 2026, seleccionada):
 
 ```
 aplico_antes_jc: False · fue_beneficiario_antes: False · seleccionado: True

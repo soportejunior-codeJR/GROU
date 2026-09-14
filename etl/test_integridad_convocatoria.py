@@ -126,7 +126,10 @@ def main():
     co=[x for x in posts if x["pais"]=="CO" and not x["enrutado_fuera_cobertura"]]; non=sum(x["estrato"] is not None for x in co)
     ex=[x for x in posts if x["pais"] in {"EC","UY","PA"}]; failures += not check(5, all(x["estrato"] is None for x in ex) and non/len(co)>=.99, f"CO={non}/{len(co)}")
     ages=[x for x in posts if x["edad"] is not None]; bad=[x for x in ages if not 10<=x["edad"]<=80]; failures += not check(6, len(bad)/len(ages)<=.01, f"excepciones={len(bad)}")
-    selected=[x for x in posts if (x.get("seleccionado") or False)]; failures += not check(7, len(selected)==832 and all(x["convocatoria"]=="2026" for x in selected), f"seleccionadas={len(selected)}")
+    selected=[x for x in posts if (x.get("seleccionado") or False)]
+    selected_by_conv=Counter(x["convocatoria"] for x in selected)
+    failures += not check(7, selected_by_conv == Counter({"2026": 832, "2025": 715}),
+                          f"seleccionadas={dict(selected_by_conv)}")
     rest=[x for x in posts if (x["convocatoria"],x["pais"]) not in {("2025","UY"),("2026","PA"),("2026","UY")} and not x["enrutado_fuera_cobertura"]]; failures += not check(8, sum(x["indice_activos"] is not None for x in rest)/len(rest)>=.99, "indice_activos")
     c=Counter((x["convocatoria"],x["pais"]) for x in posts if x["enrutado_fuera_cobertura"]); failures += not check(9,c.get(("2025","CO"))==955 and c.get(("2025","EC"))==626 and not any(x["enrutado_fuera_cobertura"] and (x["pais"]=="UY" or x["convocatoria"]=="2026") for x in posts), str(c))
     covered={("CO", c) for c in {"Barranquilla","Bogotá D.C.","Cali","Cartagena de Indias","Medellín","Valle de Aburrá"}} | {("EC", "Guayaquil")}
@@ -157,6 +160,16 @@ def main():
                                       "recibido": sum((recibido - esperado).values())}
     failures += not check(16, dataset_ok and len(comparables) == len(dataset.get("campos", {})) and not diferencias,
                           f"campos={len(comparables)} diferencias={diferencias}")
+    programs=api.get("resultado_programa", "postulacion_id,cohorte,retirado,pct_avance,cursos_aprobados",
+                     order="postulacion_id")
+    metric_2025=sum(x["cohorte"] == "2025" and x["cursos_aprobados"] is not None for x in programs)
+    metric_2026=sum(x["cohorte"] == "2026" and x["cursos_aprobados"] is not None for x in programs)
+    retired_2025=sum(x["cohorte"] == "2025" and x["retirado"] is True and x["cursos_aprobados"] is not None
+                    for x in programs)
+    no_programa=len(view)-len(programs)
+    failures += not check(17, (metric_2025, metric_2026, retired_2025, no_programa) == (559, 776, 0, 22656),
+                          f"metricas_2025={metric_2025} metricas_2026={metric_2026} "
+                          f"retirados_2025_con_dato={retired_2025} no_aplica={no_programa}")
     print(f"T7 {'FALLA' if failures else 'OK'}: fallas={failures}")
     return 1 if failures else 0
 

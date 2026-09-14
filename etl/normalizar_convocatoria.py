@@ -72,7 +72,7 @@ def cedula(value: object) -> tuple[str | None, str | None, bool]:
     raw = limpio(value)
     if not raw:
         return None, raw, True
-    # Excel puede representar identificadores como 1201219556.0.
+    # Excel puede representar los identificadores como float, con un '.0' al final.
     raw = re.sub(r"\.0$", "", raw)
     digits = re.sub(r"\D", "", raw)
     normalized = digits.lstrip("0") or None

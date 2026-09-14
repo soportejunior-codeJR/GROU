@@ -110,8 +110,9 @@ create table if not exists postulaciones_pii (
   postulacion_id        uuid primary key references postulaciones(id) on delete cascade,
   cedula_tipo           text,
   cedula_cruda          text,
-  -- solo digitos y SIN ceros a la izquierda: Ecuador escribe 0930005871 y el
-  -- canon guarda 930005871. Sin el lstrip("0") se pierden 81 matches de 832.
+  -- solo digitos y SIN ceros a la izquierda: Ecuador escribe la cedula con un
+  -- cero inicial y el canon la guarda sin el. Sin el lstrip("0") se pierden 81
+  -- matches de 832.
   cedula_norm           text,
   cedula_invalida       boolean not null default false,
   nombres               text,
