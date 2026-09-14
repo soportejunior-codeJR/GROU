@@ -10,6 +10,7 @@ node_modules/
 out/
 build/
 next-env.d.ts
+*.tsbuildinfo
 .vercel
 
 # dataset real: microdatos de ~21.400 personas. Se genera en cada build.
