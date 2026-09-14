@@ -18,6 +18,7 @@ import HeroParticulas from '@/components/HeroParticulas';
 import BackgroundPaths from '@/components/BackgroundPaths';
 import { camposOcultos } from '@/lib/camposPanel';
 import { describirFiltros } from '@/lib/describirFiltros';
+import Distribuciones from '@/components/Distribuciones';
 import { encodeFilter, parseUrl } from '@/lib/urlFiltros';
 
 const GROUPS = [
@@ -194,6 +195,7 @@ function Explorador({ ds }: { ds: Dataset }) {
   );
   const [todos, setTodos] = useState(true);
   const [informe, setInforme] = useState(false);
+  const [distribuciones, setDistribuciones] = useState(false);
   const [numericosComoBotones, setNumericosComoBotones] = useState(
     () => new URLSearchParams(location.search).get('vista_numericos') === 'botones',
   );
@@ -320,6 +322,13 @@ function Explorador({ ds }: { ds: Dataset }) {
           {numericosComoBotones ? 'Ver como rango' : 'Ver como botones'}
         </button>
         <span className="muted">{Object.keys(filtros).length} filtros activos</span>
+        <button
+          type="button"
+          className="button button-secondary"
+          onClick={() => setDistribuciones(!distribuciones)}
+        >
+          {distribuciones ? 'Volver al Explorador' : 'Comparar seleccionadas vs. no seleccionadas'}
+        </button>
       </div>
       {Object.keys(filtros).length > 0 && (
         <div className="active-filters panel-controls" aria-label="Filtros activos">
@@ -335,14 +344,40 @@ function Explorador({ ds }: { ds: Dataset }) {
           ))}
         </div>
       )}
-      <div className="panel-controls">
-        {GROUPS.map((group) => (
-          <section key={group.name} className={`filter-group group-${group.color}`}>
-            <h2>{group.name}</h2>
-            <div className="filtergrid">
-              {group.fields
-                .filter((c) => ds.campos[c])
-                .map((c) => (
+      {distribuciones ? (
+        <Distribuciones
+          ds={ds}
+          filtros={filtros}
+          modo={modo}
+          onClose={() => setDistribuciones(false)}
+        />
+      ) : (
+        <div className="panel-controls">
+          {GROUPS.map((group) => (
+            <section key={group.name} className={`filter-group group-${group.color}`}>
+              <h2>{group.name}</h2>
+              <div className="filtergrid">
+                {group.fields
+                  .filter((c) => ds.campos[c])
+                  .map((c) => (
+                    <FiltroCard
+                      key={c}
+                      ds={ds}
+                      campo={c}
+                      filtros={filtros}
+                      cambiar={cambiar}
+                      modo={modo}
+                      numericosComoBotones={numericosComoBotones}
+                    />
+                  ))}
+              </div>
+            </section>
+          ))}
+          {extra.length > 0 && (
+            <section>
+              <h2>Otros campos</h2>
+              <div className="filtergrid">
+                {(todos ? extra : extra.slice(0, 8)).map((c) => (
                   <FiltroCard
                     key={c}
                     ds={ds}
@@ -353,33 +388,16 @@ function Explorador({ ds }: { ds: Dataset }) {
                     numericosComoBotones={numericosComoBotones}
                   />
                 ))}
-            </div>
-          </section>
-        ))}
-        {extra.length > 0 && (
-          <section>
-            <h2>Otros campos</h2>
-            <div className="filtergrid">
-              {(todos ? extra : extra.slice(0, 8)).map((c) => (
-                <FiltroCard
-                  key={c}
-                  ds={ds}
-                  campo={c}
-                  filtros={filtros}
-                  cambiar={cambiar}
-                  modo={modo}
-                  numericosComoBotones={numericosComoBotones}
-                />
-              ))}
-            </div>
-            {extra.length > 8 && (
-              <button onClick={() => setTodos(!todos)} className="button button-secondary">
-                {todos ? 'Mostrar menos' : `Mostrar los ${extra.length - 8} restantes`}
-              </button>
-            )}
-          </section>
-        )}
-      </div>
+              </div>
+              {extra.length > 8 && (
+                <button onClick={() => setTodos(!todos)} className="button button-secondary">
+                  {todos ? 'Mostrar menos' : `Mostrar los ${extra.length - 8} restantes`}
+                </button>
+              )}
+            </section>
+          )}
+        </div>
+      )}
       {informe && (
         <Informe ds={ds} filtros={filtros} modo={modo} indices={indices} seleccionadas={selected} />
       )}
