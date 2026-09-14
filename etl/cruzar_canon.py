@@ -207,6 +207,7 @@ def main():
     for person in cohort_2025:
         candidates = by_ced.get(("2025", cedula_norm(person["cedula"])), [])
         method = "cedula"
+        all_cedula_candidates = candidates
         if len(candidates) > 1 and person.get("nombre"):
             same_name = [c for c in candidates if c["name"] == nombre_norm(person["nombre"])]
             if len(same_name) == 1:
@@ -215,7 +216,15 @@ def main():
             candidates = [c for c in by_name.get(("2025", nombre_norm(person.get("nombre"))), [])
                           if c["item"]["postulacion"]["id_publico"] not in assigned_posts]
             method = "nombre"
-        if resolve(candidates, person, method) is not None:
+        winner = resolve(candidates, person, method)
+        if winner is not None:
+            if method == "cedula" and len(all_cedula_candidates) > len(candidates):
+                winner_id = winner["item"]["postulacion"]["id_publico"]
+                for candidate in all_cedula_candidates:
+                    duplicate_id = candidate["item"]["postulacion"]["id_publico"]
+                    if duplicate_id != winner_id and (duplicate_id, winner_id) not in duplicate_rows:
+                        duplicate_rows.append((duplicate_id, winner_id))
+
             matched_2025 += 1
     print(f"T5: roster 2025 cruzado={matched_2025}/{len(cohort_2025)}")
 

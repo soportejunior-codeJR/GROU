@@ -11,7 +11,7 @@ import {
 } from '@/lib/dataset';
 import GraficoFaceta from './GraficoFaceta';
 
-const LABELS: Record<string, string> = {
+export const LABELS: Record<string, string> = {
   convocatoria: 'Convocatoria',
   pais: 'País',
   ciudad: 'Ciudad',

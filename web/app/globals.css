@@ -105,6 +105,29 @@ select { padding: 6px; border: 1px solid var(--rule); border-radius: 3px; backgr
 table { border-collapse: collapse; width: 100%; font-size: 13px; }
 th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
 th { background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+.report-trigger { margin-top: 32px; display: flex; justify-content: center; }
+.print-report { margin-top: 28px; }
+.report-header { display: flex; justify-content: space-between; gap: 24px; align-items: start; border-bottom: 2px solid var(--rule); padding-bottom: 18px; }
+.report-header h2 { margin: 6px 0 10px; }
+.report-context { font-weight: 700; max-width: 900px; }
+.report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-top: 20px; }
+.report-chart { min-width: 0; border: 1px solid var(--rule); border-radius: 5px; padding: 12px; background: var(--surface); break-inside: avoid; }
+.report-chart h3 { font-size: 14px; margin: 0 0 8px; }
+.print-url { color: var(--ink-3); font-size: 10px; overflow-wrap: anywhere; }
 @media (max-width: 700px) { .topline { align-items: start; flex-direction: column; } .export-actions { justify-content: flex-start; } .shell { padding: 26px 12px 60px; } }
 @media (max-width: 420px) { .shell { padding-left: 8px; padding-right: 8px; } .filtergrid { grid-template-columns: 1fr; } .topline { margin: 0 -8px; padding-left: 8px; padding-right: 8px; } .topline h1 { font-size: 25px; } .export-actions, .export-actions .button { width: 100%; } .bar-row { grid-template-columns: 1fr 1.3fr auto; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; } }
+@media print {
+  @page { margin: 16mm 14mm 18mm; }
+  html, body { background: #fff !important; color: #111 !important; }
+  .topline, .panel-controls, .results-table, .logout-button, .report-trigger, .no-print { display: none !important; }
+  .shell { max-width: none; padding: 0; }
+  .shell > .eyebrow, .shell > h1 { display: none; }
+  .print-report { display: block !important; margin: 0; }
+  .report-header { color: #111; }
+  .report-header .muted, .print-url { color: #333 !important; }
+  .report-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .report-chart { background: #fff !important; color: #111 !important; border-color: #bbb; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .report-chart .chart, .report-chart svg, .report-chart span { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .print-url { position: fixed; bottom: -10mm; left: 0; right: 0; }
+}

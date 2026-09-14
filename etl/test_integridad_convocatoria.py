@@ -167,7 +167,7 @@ def main():
     retired_2025=sum(x["cohorte"] == "2025" and x["retirado"] is True and x["cursos_aprobados"] is not None
                     for x in programs)
     no_programa=len(view)-len(programs)
-    failures += not check(17, (metric_2025, metric_2026, retired_2025, no_programa) == (559, 776, 0, 22649),
+    failures += not check(17, (len(programs), metric_2025, metric_2026, retired_2025, no_programa) == (1554, 559, 776, 0, 22649),
                           f"metricas_2025={metric_2025} metricas_2026={metric_2026} "
                           f"retirados_2025_con_dato={retired_2025} no_aplica={no_programa}")
     print(f"T7 {'FALLA' if failures else 'OK'}: fallas={failures}")

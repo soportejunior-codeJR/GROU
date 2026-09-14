@@ -13,6 +13,7 @@ import { filtrar, type Dataset, type Filtro, type Filtros, type Modo } from '@/l
 import FiltroCard from '@/components/FiltroCard';
 import Encabezado from '@/components/Encabezado';
 import TablaResultados from '@/components/TablaResultados';
+import Informe from '@/components/Informe';
 import { encodeFilter, parseUrl } from '@/lib/urlFiltros';
 
 const GROUPS = [
@@ -154,6 +155,7 @@ function Explorador({ ds }: { ds: Dataset }) {
     new URLSearchParams(location.search).get('modo') === 'AL_MENOS_UNA' ? 'AL_MENOS_UNA' : 'TODAS',
   );
   const [todos, setTodos] = useState(true);
+  const [informe, setInforme] = useState(false);
   const indices = useMemo(() => filtrar(ds, filtros, modo), [ds, filtros, modo]);
   const selected = useMemo(
     () => Array.from(indices).filter((i) => valueAt(ds, 'seleccionado', i) === true).length,
@@ -244,7 +246,7 @@ function Explorador({ ds }: { ds: Dataset }) {
         exportarPii={exportarPii}
       />
       {ds.es_ejemplo && <p className="error-text">Advertencia: dataset de ejemplo.</p>}
-      <div className="toolbar">
+      <div className="toolbar panel-controls">
         <button
           onClick={() => {
             setFiltros({});
@@ -263,13 +265,31 @@ function Explorador({ ds }: { ds: Dataset }) {
         </label>
         <span className="muted">{Object.keys(filtros).length} filtros activos</span>
       </div>
-      {GROUPS.map(([name, fields]) => (
-        <section key={name}>
-          <h2>{name}</h2>
-          <div className="filtergrid">
-            {fields
-              .filter((c) => ds.campos[c])
-              .map((c) => (
+      <div className="panel-controls">
+        {GROUPS.map(([name, fields]) => (
+          <section key={name}>
+            <h2>{name}</h2>
+            <div className="filtergrid">
+              {fields
+                .filter((c) => ds.campos[c])
+                .map((c) => (
+                  <FiltroCard
+                    key={c}
+                    ds={ds}
+                    campo={c}
+                    filtros={filtros}
+                    cambiar={cambiar}
+                    modo={modo}
+                  />
+                ))}
+            </div>
+          </section>
+        ))}
+        {extra.length > 0 && (
+          <section>
+            <h2>Otros campos</h2>
+            <div className="filtergrid">
+              {(todos ? extra : extra.slice(0, 8)).map((c) => (
                 <FiltroCard
                   key={c}
                   ds={ds}
@@ -279,32 +299,32 @@ function Explorador({ ds }: { ds: Dataset }) {
                   modo={modo}
                 />
               ))}
-          </div>
-        </section>
-      ))}
-      {extra.length > 0 && (
-        <section>
-          <h2>Otros campos</h2>
-          <div className="filtergrid">
-            {(todos ? extra : extra.slice(0, 8)).map((c) => (
-              <FiltroCard
-                key={c}
-                ds={ds}
-                campo={c}
-                filtros={filtros}
-                cambiar={cambiar}
-                modo={modo}
-              />
-            ))}
-          </div>
-          {extra.length > 8 && (
-            <button onClick={() => setTodos(!todos)} className="button button-secondary">
-              {todos ? 'Mostrar menos' : `Mostrar los ${extra.length - 8} restantes`}
-            </button>
-          )}
-        </section>
+            </div>
+            {extra.length > 8 && (
+              <button onClick={() => setTodos(!todos)} className="button button-secondary">
+                {todos ? 'Mostrar menos' : `Mostrar los ${extra.length - 8} restantes`}
+              </button>
+            )}
+          </section>
+        )}
+      </div>
+      {informe && (
+        <Informe
+          ds={ds}
+          filtros={filtros}
+          modo={modo}
+          indices={indices}
+          seleccionadas={selected}
+        />
       )}
-      <TablaResultados ds={ds} indices={indices} />
+      <div className="report-trigger no-print">
+        <button className="button button-primary" onClick={() => setInforme(!informe)}>
+          {informe ? 'Ocultar informe' : 'Ver informe'}
+        </button>
+      </div>
+      <div className="results-table">
+        <TablaResultados ds={ds} indices={indices} />
+      </div>
     </>
   );
 }
