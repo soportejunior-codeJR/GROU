@@ -1002,6 +1002,80 @@ aprobados" dice "entró y no aprobó ninguno", que de 23.371 personas es falso.
 
 ---
 
+## 5-bis. DESBLOQUEADO — el roster 2025 y las métricas de curso existen
+
+Codex frenó aquí con razón: no encontró cómo identificar el canon 2025 sin inventar, y paró en vez
+de adivinar. La fuente existe, solo que en otra tabla. **Regla explícita, verificada el 2026-09-14
+contra `panel-datos-rofe`:**
+
+### El roster JC 2025 — 723 personas
+
+```sql
+-- egresados: 560 cédulas, ninguna nula
+select cedula, participant_id from postulantes_jc
+where promo_year = '2025' and rol = 'EGRESADO'
+
+-- retirados: 163 cédulas
+select cedula from retiros
+where cohorte = '2025' and programa::text = 'jc'
+```
+
+**Los dos conjuntos son disjuntos (0 solapamiento) y su unión da 723.** Coincide con la cohorte
+2025 sellada el 2026-08-06: 559 aprobados + 163 retirados. `rol` solo toma el valor `EGRESADO` en
+`promo_year='2025'`, así que no hay ambigüedad.
+
+**Por qué no servían las otras fuentes** (lo que Codex reportó, y es correcto): `participants` no
+tiene `cohorte`, `cohorte_2026_ceds` solo cubre 2026, `v_cohorte_estudiantes` es agregada —7 filas,
+una por año— y `aprobacion_cursos` solo tiene cohorte 2026. Ninguna sirve. `postulantes_jc` sí,
+porque trae `promo_year`, `rol`, `cedula` **y** `participant_id`.
+
+### Las métricas de curso — `participant_metrics`
+
+```sql
+select participant_id, total_cursos_inscrito, total_cursos_completado, porcentaje_promedio
+from participant_metrics   -- 4.142 filas, una por persona
+```
+
+El puente es `postulantes_jc.participant_id`. **`participants` no tiene cédula**; `postulantes_jc`
+es la única tabla que lleva las dos llaves.
+
+### Cobertura real — y aquí está lo que no se puede inventar
+
+| Grupo | Total | Con métricas | Sin métricas |
+|---|---:|---:|---:|
+| Egresados 2025 | 560 | **559** | 1 (sin `participant_id`) |
+| Retirados 2025 | 163 | **0** | **163** |
+| Canon 2026 | 832 | **776** | 56 |
+
+**Los 163 retirados de 2025 no tienen datos de curso y nunca los van a tener.** Q10 borra el avance
+al inhabilitar a un estudiante; el ledger es la única memoria y no cubre 2025. Eso no es un hueco
+que se pueda rellenar: es información que ya no existe.
+
+**Todos esos huecos son `sin_dato`, jamás 0.** Un 0 en "cursos aprobados" dice "entró y no aprobó
+ninguno". Para un retirado de 2025 eso es probablemente falso, y para los 56 de 2026 es
+seguramente falso: sus promedios son 11,9 cursos inscritos y 11,4 completados.
+
+### Qué cargar
+
+- `resultado_programa.cursos_inscritos` ← `total_cursos_inscrito`
+- `resultado_programa.cursos_aprobados` ← `total_cursos_completado`
+- `resultado_programa.pct_avance` ← `porcentaje_promedio`
+- `resultado_programa.cohorte` ← `'2025'` o `'2026'`
+
+Y **marcar como seleccionadas también las postulaciones de 2025** que crucen contra ese roster de
+723: hoy `seleccionado` solo cubre el canon 2026. Ojo con el §9: el cruce de 2026 se acota a
+postulaciones de 2026; el de 2025 debe acotarse a postulaciones de 2025, por la misma razón.
+
+### Aceptación de 5-bis
+
+- [ ] Roster 2025 identificado: 560 egresados + 163 retirados = 723, sin solapamiento
+- [ ] `pct_avance` y `cursos_aprobados` poblados para 559 de 2025 y 776 de 2026
+- [ ] `sin_dato` —no 0— para: el egresado sin `participant_id`, los 163 retirados de 2025 y los 56 de 2026
+- [ ] `no_aplica` para las 23.371 postulaciones que nunca entraron al programa
+- [ ] Un test en la suite que verifique esos conteos exactos
+
+---
+
 ## 6. Aceptación de T12
 
 - [ ] Slider de edad entre 10 y 80, no -884 a 2022
