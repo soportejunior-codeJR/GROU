@@ -545,3 +545,178 @@ como en el de Ecuador. Por eso la cobertura **no** se lee de `ciudad_alias.tiene
 evalúa contra el par (país, ciudad). Si más adelante el panel necesita cobertura por convocatoria
 (Panamá solo existió en 2026), eso pide una tabla `cobertura_programa (pais, ciudad_norm,
 convocatoria)`. Hoy no hace falta.
+
+---
+
+# T10 — Gráficos por filtro, export con PII y mejora visual
+
+Pedido del cliente tras ver la beta del Explorador (2026-09-13). Tres frentes
+independientes; se pueden hacer en cualquier orden, pero **T10.0 es requisito de T10.3**.
+
+---
+
+## T10.0 — Partir `page.tsx` antes de tocar nada visual
+
+Hoy son 47 líneas con líneas de más de 2.000 caracteres. Funciona, pero cualquier trabajo visual
+encima se vuelve imposible de revisar y de revertir.
+
+Sepáralo primero, sin cambiar comportamiento:
+
+```
+web/components/FiltroCard.tsx      la tarjeta de un filtro (cara de control + cara de gráfico)
+web/components/GraficoFaceta.tsx   el gráfico, elegido por tipo de campo
+web/components/TablaResultados.tsx la tabla
+web/components/Encabezado.tsx      el contador vivo y los botones de export
+web/lib/urlFiltros.ts              encodeFilter / parseUrl
+```
+
+`page.tsx` queda como composición. **Commit aparte, antes de empezar lo demás**, para que el diff
+de la parte visual sea legible.
+
+---
+
+## T10.1 — Export CSV **con** PII
+
+El cliente lo necesita para poder contactar gente. Se construye, pero **la PII nunca entra al
+bundle del navegador**: son ~21.400 personas, muchas menores de edad, y el dataset horneado lo
+descarga completo cualquiera que abra el panel. Va por una ruta de servidor que consulta Supabase
+en el momento.
+
+### Ruta nueva: `web/app/api/exportar-pii/route.ts`
+
+1. `POST` con `{ ids: number[] }` — los `id_publico` del subconjunto filtrado.
+2. Valida **igual que `/api/datos`**: token de sesión + correo en `CORREOS_PERMITIDOS`. Sin eso, 401.
+3. Consulta `postulaciones_pii` **del lado del servidor** con `CONV_SUPABASE_SERVICE_ROLE_KEY`,
+   uniendo por `id_publico`, solo las filas pedidas.
+4. Devuelve el CSV como `text/csv` con `Content-Disposition: attachment`.
+5. Tope duro: **5.000 filas por export**. Por encima, 413 con un mensaje que diga que hay que
+   filtrar más. Exportar las 24.203 de una es un volcado completo de la base, no un análisis.
+
+### Auditoría — migración 004
+
+```sql
+create table if not exists export_log (
+  id          uuid primary key default gen_random_uuid(),
+  correo      text not null,
+  filas       integer not null,
+  filtros     jsonb,
+  creado_en   timestamptz not null default now()
+);
+```
+
+RLS deny-all como todo lo demás. La ruta escribe una fila por export. **No guarda los ids ni los
+datos exportados**, solo quién, cuándo y cuántos: alcanza para auditar y no duplica la PII.
+
+### En la interfaz
+
+Dos botones separados y rotulados sin ambigüedad:
+
+- `Exportar CSV` — el actual, sin datos personales
+- `Exportar con datos personales` — visualmente distinto (contorno de advertencia), con un diálogo
+  de confirmación que diga cuántas filas y qué campos incluye antes de descargar
+
+Campos del export con PII: `id_publico`, `cedula_cruda`, `nombres`, `apellidos`, `email`,
+`celular`, `ciudad`, `convocatoria`, `seleccionado`. **No** incluyas dirección, barrio ni datos del
+acudiente: no hacen falta para contactar y son lo más sensible del registro.
+
+---
+
+## T10.2 — El gráfico de cada filtro
+
+### De dónde salen los números — no hay cálculo nuevo
+
+`contarFacetas(ds, campo, filtros, modo)` ya devuelve exactamente lo que el cliente describió: el
+conteo de cada opción sobre el universo filtrado por **todos los demás filtros menos el propio**.
+Eso es "limitadas por los filtros anteriores". El gráfico es una forma de dibujar números que ya
+existen. **No escribas un agregador nuevo.**
+
+### La forma depende del campo — no todo es una dona
+
+| Tipo | Categorías | Forma | Por qué |
+|---|---|---|---|
+| `cat` / `bool` | ≤ 6 | **Dona** | Lo que pidió el cliente, y con pocas porciones se lee bien |
+| `cat` | 7 – 20 | Barras horizontales ordenadas | Una dona de 15 porciones no se lee |
+| `cat` | > 20 (`ciudad` tiene 546) | Barras horizontales, top 10 + "Otras (N)" | Idem, y el top es lo que importa |
+| `multi` | cualquiera | **Barras horizontales, nunca dona** | Una persona cuenta en varias categorías: las porciones no suman el total y una dona mentiría |
+| `num` | — | Histograma, con el rango elegido en azul | Un rango no es una categoría |
+
+Ese renglón de `multi` no es estética: `segmentos`, `ocupaciones` y `como_se_entero` son
+multivalor. Dibujarlos como dona daría un círculo que suma más de 100 %.
+
+### Color — validado, no elegido a ojo
+
+Es resaltado (seleccionado vs resto), no identidad. Dos colores y nada más:
+
+| | Seleccionado | Resto |
+|---|---|---|
+| Claro | `#1f6feb` | `#6b7280` |
+| Oscuro | `#3b8eea` | `#717a85` |
+
+Ambos pares pasan separación para daltonismo (ΔE 17,8 claro · 15,3 oscuro, muy por encima del piso
+de 8) y contraste ≥ 3:1 contra su superficie. **No los cambies sin volver a validarlos.** El modo
+oscuro tiene sus propios valores a propósito: no es el claro invertido.
+
+Sin selección: todo en gris. Con selección: la elegida en azul, el resto gris.
+
+### Detalles de dibujo
+
+- Separación de 2 px entre porciones y entre barras, del color de la superficie.
+- Extremo de barra redondeado 4 px, anclado a la línea base.
+- **Etiqueta directa siempre sobre la porción seleccionada** (valor y %); sobre las demás solo si
+  caben sin chocar.
+- Tooltip al pasar el cursor con el conteo exacto y el % — en todas las formas.
+- Los textos usan los tokens de texto, **nunca el color de la serie**.
+- Sin leyenda: hay una sola serie resaltada y el título de la tarjeta ya la nombra.
+- Rejilla y ejes recesivos.
+- En el centro de la dona, el % de lo seleccionado. Sin selección, el total del universo vigente.
+
+Recharts ya está en `package.json`. Úsalo o dibuja SVG a mano — una dona son dos arcos y las barras
+son rectángulos. **No agregues una librería nueva.**
+
+### El giro
+
+- Cada tarjeta de filtro lleva arriba a la derecha un botón pequeño con ícono de barras.
+- Al pulsarlo la tarjeta **gira** (transform 3D, ~250 ms) y muestra la cara del gráfico. El mismo
+  botón, o uno de volver, la devuelve.
+- Cuando el campo tiene algo seleccionado, el botón queda en estado activo para que se note que
+  hay algo que ver. **El giro automático al seleccionar queda opcional** — pruébalo, y si marca
+  cada clic con una animación resulta mareante, déjalo solo manual.
+- Con `prefers-reduced-motion: reduce`, cruce de opacidad en vez de giro.
+- La cara del gráfico **no** pierde el control: deja abajo un resumen de lo seleccionado y el botón
+  de limpiar ese filtro.
+
+---
+
+## T10.3 — Mejora visual
+
+Requiere T10.0 hecho.
+
+- **Tokens en `globals.css`** para claro y oscuro: superficie, superficie-2, tinta, tinta-2,
+  tinta-3, línea, acento. Ningún color literal dentro de un componente.
+- **Las tarjetas de filtro son un objeto repetido**: mismos bordes, mismo relleno interno, el botón
+  de gráfico siempre en el mismo sitio. Es lo que hace que una grilla de 30 filtros se lea.
+- **Encabezado fijo** con el contador vivo (`N de 24.203 · M seleccionadas · X %`) y los chips de
+  filtros activos, para no perder el número al hacer scroll.
+- Jerarquía tipográfica real: los grupos de filtros no pueden verse igual que los nombres de campo.
+- `font-variant-numeric: tabular-nums` en todo número que se compare en columna.
+- Debe funcionar a ~400 px de ancho: la grilla colapsa a una columna.
+
+El estilo concreto es tuyo. Lo que no es negociable: que funcione en claro y oscuro, que el
+contraste de texto pase, y que los colores del gráfico sean los validados de arriba.
+
+---
+
+## Aceptación de T10
+
+- `page.tsx` por debajo de 120 líneas, con los componentes separados
+- Export con PII: 401 sin sesión · 401 con correo fuera de la lista · 413 por encima de 5.000 filas
+  · una fila en `export_log` por cada export exitoso
+- La PII **no** aparece en `web/data/postulaciones.json` ni en ningún chunk del bundle
+- Gráfico correcto por tipo: dona en `pais`, barras en `ciudad`, barras en `segmentos`, histograma
+  en `edad`
+- Elegir `2025` en `convocatoria` muestra la dona con 2025 en azul y 2026 en gris, y los números
+  coinciden con `contarFacetas`
+- Los gráficos respetan los filtros previos: con `pais = CO` puesto, la dona de `convocatoria`
+  muestra solo colombianos
+- Claro y oscuro verificados en ambos, no solo en uno
+- `npm run build` en verde
