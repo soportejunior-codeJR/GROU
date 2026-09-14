@@ -39,12 +39,17 @@ cargarEnvLocal();
 const URL_BASE = process.env.CONV_SUPABASE_URL;
 const KEY = process.env.CONV_SUPABASE_SERVICE_ROLE_KEY;
 const VISTA = 'v_analisis_postulaciones';
-const PAGINA = 1000;
+const PAGINA = 500; // paginas mas pequenas: con 1000 la vista de 52 columnas devolvia 504
 
 const SIN_DATO = 'Sin dato';
 
 // Campos numericos y booleanos; todo lo demas se trata como categorico o multivalor.
 const NUMERICOS = new Set([
+  // id_publico va aqui obligatoriamente. Si cae en la rama categorica, lo que se
+  // guarda son INDICES DE DICCIONARIO (0,1,2...) en vez de los ids, y el export de
+  // datos personales pediria las personas equivocadas. Ademas un diccionario de
+  // 24.203 cadenas unicas engorda el archivo sin ganar nada.
+  'id_publico',
   'edad', 'estrato', 'personas_nucleo', 'indice_activos',
   'promedio_pct', 'horas_min', 'horas_max', 'pct_avance', 'cursos_aprobados',
 ]);
@@ -53,7 +58,13 @@ const BOOLEANOS = new Set([
   'enrutado_fuera_cobertura', 'seleccionado', 'retirado',
 ]);
 const MULTIVALOR = new Set(['segmentos', 'ocupaciones', 'como_se_entero']);
-const OMITIR = new Set(['id_publico']);
+// id_publico SÍ viaja en el dataset. Antes se omitía y la interfaz lo reconstruía
+// como (posición de fila + 1), lo cual solo da bien mientras los ids sean contiguos
+// desde 1 y el build consulte con order=id_publico.asc. Esa suposición no está
+// garantizada por nada, y el id se usa para pedir la exportación CON DATOS
+// PERSONALES: si algún día se rompe, se descargarían datos de personas distintas a
+// las filtradas. Cuesta ~150 KB y elimina el riesgo.
+const OMITIR = new Set([]);
 
 /** ¿Ya hay un dataset real en disco? */
 function hayDatasetReal() {
@@ -92,15 +103,38 @@ function escribir(obj) {
   console.log(`[dataset] ${obj.total} filas · ${mb} MB · ejemplo=${obj.es_ejemplo}`);
 }
 
+const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Trae una pagina reintentando los fallos transitorios. La vista cruza varias
+ * tablas y PostgREST devuelve 504 de vez en cuando: sin reintento, un timeout
+ * aislado tumba el deploy entero de Vercel, donde el error se lanza a proposito.
+ */
+async function leerPagina(offset, intentos = 4) {
+  // El `order` explicito NO es decorativo: sin el, PostgREST no garantiza orden
+  // estable entre paginas y se repiten o se pierden filas (incidente 2026-09-08).
+  const url = `${URL_BASE}/rest/v1/${VISTA}?select=*&order=id_publico.asc&limit=${PAGINA}&offset=${offset}`;
+  for (let intento = 1; ; intento++) {
+    try {
+      const resp = await fetch(url, { headers: { apikey: KEY, Authorization: `Bearer ${KEY}` } });
+      if (resp.ok) return resp.json();
+      const transitorio = resp.status >= 500 || resp.status === 429;
+      if (!transitorio || intento >= intentos) {
+        throw new Error(`${VISTA}: HTTP ${resp.status} ${await resp.text()}`);
+      }
+      console.warn(`[dataset] HTTP ${resp.status} en offset ${offset}, reintento ${intento}/${intentos - 1}`);
+    } catch (e) {
+      if (intento >= intentos) throw e;
+      console.warn(`[dataset] ${e.message} — reintento ${intento}/${intentos - 1}`);
+    }
+    await dormir(2000 * intento); // espera creciente: 2s, 4s, 6s
+  }
+}
+
 async function leerTodo() {
   const filas = [];
   for (let offset = 0; ; offset += PAGINA) {
-    // El `order` explicito NO es decorativo: sin el, PostgREST no garantiza orden
-    // estable entre paginas y se repiten o se pierden filas (incidente 2026-09-08).
-    const url = `${URL_BASE}/rest/v1/${VISTA}?select=*&order=id_publico.asc&limit=${PAGINA}&offset=${offset}`;
-    const resp = await fetch(url, { headers: { apikey: KEY, Authorization: `Bearer ${KEY}` } });
-    if (!resp.ok) throw new Error(`${VISTA}: HTTP ${resp.status} ${await resp.text()}`);
-    const lote = await resp.json();
+    const lote = await leerPagina(offset);
     filas.push(...lote);
     if (lote.length < PAGINA) break;
   }

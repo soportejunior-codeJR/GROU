@@ -201,7 +201,12 @@ function Explorador({ ds }: { ds: Dataset }) {
     const response = await fetch('/api/exportar-pii', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: Array.from(indices, (i) => i + 1), filtros }),
+      body: JSON.stringify({
+        // Los id_publico reales del subconjunto, leídos del dataset. Nunca (i + 1):
+        // ese número es la posición de la fila, no la identidad de la persona.
+        ids: Array.from(indices, (i) => valueAt(ds, 'id_publico', i) as number),
+        filtros,
+      }),
     });
     if (!response.ok) {
       const detalle = await response.json().catch(() => null);
@@ -293,7 +298,9 @@ function Explorador({ ds }: { ds: Dataset }) {
 }
 
 function valueAt(ds: Dataset, c: string, i: number): string | number | boolean | null {
-  if (c === 'id_publico') return i + 1;
+  // id_publico se lee del dataset como cualquier otro campo. NO lo derives de la
+  // posición de la fila: es el identificador con el que se piden los datos
+  // personales, y un desfase devolvería los de otra persona.
   const d = ds.campos[c];
   const v = ds.columnas[c]?.[i];
   if (v === null || v === undefined) return null;
