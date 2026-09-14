@@ -53,10 +53,34 @@ const NUMERICOS = new Set([
   'edad', 'estrato', 'personas_nucleo', 'indice_activos',
   'promedio_pct', 'horas_min', 'horas_max', 'pct_avance', 'cursos_aprobados',
 ]);
+// OJO: esta lista dice que campos PODRIAN ser booleanos, no que lo sean. El tipo
+// real se decide mirando el dato (ver esBooleanoDeVerdad), porque la vista devuelve
+// varios de estos como TEXTO de tres valores: 'si' / 'no' / 'no_aplica'.
+//
+// Tratarlos como booleanos con `f[campo] ? 1 : 0` los falsea por completo: en
+// JavaScript cualquier cadena no vacia es verdadera, asi que 'no' se convierte en
+// 1 = "Si". Eso dejo cuatro filtros marcando "Si" para las 24.203 personas
+// —tiene_internet, aplico_antes_jc, fue_beneficiario_antes y retirado— hasta que
+// el cliente lo noto mirando el panel. seleccionado y enrutado_fuera_cobertura se
+// salvaron solo porque la vista SI los devuelve como booleanos reales.
+//
+// Por eso ya no se confia en la lista: se mira el dato.
 const BOOLEANOS = new Set([
   'tiene_internet', 'aplico_antes_jc', 'fue_beneficiario_antes',
   'enrutado_fuera_cobertura', 'seleccionado', 'retirado',
 ]);
+
+/** true solo si TODOS los valores no nulos son booleanos de verdad. */
+function esBooleanoDeVerdad(filas, campo) {
+  let vistos = 0;
+  for (const f of filas) {
+    const v = f[campo];
+    if (v === null || v === undefined) continue;
+    if (typeof v !== 'boolean') return false;
+    vistos++;
+  }
+  return vistos > 0;
+}
 const MULTIVALOR = new Set(['segmentos', 'ocupaciones', 'como_se_entero']);
 // id_publico SÍ viaja en el dataset. Antes se omitía y la interfaz lo reconstruía
 // como (posición de fila + 1), lo cual solo da bien mientras los ids sean contiguos
@@ -157,7 +181,7 @@ function comprimir(filas) {
         max: reales.length ? Math.max(...reales) : 0,
       };
       columnas[campo] = col;
-    } else if (BOOLEANOS.has(campo)) {
+    } else if (BOOLEANOS.has(campo) && esBooleanoDeVerdad(filas, campo)) {
       campos[campo] = { tipo: 'bool', etiqueta: campo };
       columnas[campo] = filas.map((f) => (f[campo] ? 1 : 0));
     } else if (MULTIVALOR.has(campo)) {

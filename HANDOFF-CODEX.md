@@ -841,6 +841,45 @@ y falso: que la persona no contestó.
 
 ---
 
+## 0-bis. CORREGIDO — cuatro filtros marcaban "Si" para las 24.203 personas
+
+**Ya esta arreglado (no lo rehagas), pero lee por que, porque la leccion aplica a todo el panel.**
+
+`tiene_internet`, `aplico_antes_jc`, `fue_beneficiario_antes` y `retirado` mostraban **"Si" para
+las 24.203 filas**. El cliente lo vio en pantalla; nosotros no.
+
+**Causa:** la vista devuelve esos campos como TEXTO de tres valores (`si` / `no` / `no_aplica`),
+que es lo correcto para poder expresar "no aplica". Pero `construir-dataset.mjs` los tenia en la
+lista `BOOLEANOS` y hacia `f[campo] ? 1 : 0`. En JavaScript **cualquier cadena no vacia es
+verdadera**, asi que `'no'` se convertia en 1 = "Si".
+
+`seleccionado` y `enrutado_fuera_cobertura` se salvaron solo porque la vista SI los devuelve como
+booleanos reales.
+
+**Valores correctos, ya verificados:**
+
+| Campo | Distribucion real |
+|---|---|
+| `tiene_internet` | 21.406 si · 645 no · 2.152 sin dato |
+| `aplico_antes_jc` | 20.397 no · 1.087 si · 2.719 sin dato |
+| `fue_beneficiario_antes` | 21.325 no · 159 si · 2.719 sin dato |
+| `retirado` | 23.371 no aplica · 740 no · 92 si |
+
+**El arreglo:** ya no se confia en la lista. `esBooleanoDeVerdad()` mira el dato y solo trata como
+booleano lo que realmente lo es; el resto cae en la rama categorica, donde `si`/`no`/`no_aplica`
+se convierten en tres categorias correctas.
+
+### Las dos lecciones
+
+1. **Ninguna prueba lo detecto**, porque la suite verifica la BASE y ahi el dato siempre estuvo
+   bien. El fallo estaba en la traduccion base -> dataset horneado, que nadie comprobaba.
+   **Falta una prueba que compare el dataset contra la base**: para cada campo, que la
+   distribucion del JSON coincida con un `group by` en Supabase. Anadela a T12.
+2. **Una lista escrita a mano se desincroniza del esquema en silencio.** La vista cambio de
+   booleano a texto —con razon— y la lista se quedo como estaba. Donde se pueda, mirar el dato.
+
+---
+
 ## 1. Edad — el rango del filtro es inservible
 
 **Lo que está bien:** 22.384 edades válidas de 24.203 (92,5 %), con una distribución perfectamente
