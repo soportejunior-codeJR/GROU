@@ -1298,3 +1298,111 @@ para convivir entre varias series, no para resaltar uno contra un neutro.
 - [ ] Century Gothic y la paleta oficial aplicadas a la interfaz
 - [ ] Decisión de Samuel sobre los colores de gráfico, aplicada y documentada
 - [ ] Claro y oscuro verificados en ambos
+
+---
+
+# T15 — Más color y acabado visual, con la frontera que marca el manual
+
+Pedido de Samuel tras ver T14: acercar el acabado al Panel de Datos, con más color.
+
+Se puede, y hay margen real. Pero el manual digital (`BRAND-DIGITAL.md`, regla de oro 4) dice
+literalmente: **"Datos primero: si un efecto compite con la lectura de un gráfico, se quita."**
+Este documento reparte lo que cabe de cada lado de esa frontera.
+
+## Lo que NO vamos a hacer, y por qué
+
+**Colores categóricos en los gráficos de faceta.** Es lo primero que uno piensa al oír "más
+color", y sería un error: `ciudad` tiene 546 categorías. Pintar cada porción de un color distinto
+no añade información, la entierra. La codificación de esos gráficos es **resaltado**
+—seleccionado contra el resto—, y ahí el color solo tiene dos trabajos.
+
+**Fondos animados detrás de la rejilla de filtros.** El hero de partículas y los trazos de fondo
+son componentes de firma del Panel de Datos, pero el manual los restringe a portadas: *"nunca
+sobre contenido de datos"*, *"jamás detrás de texto pequeño"*. Nuestra pantalla de trabajo son
+treinta tarjetas densas.
+
+---
+
+## 1. Color semántico en los gráficos — aquí está el verdadero margen
+
+Es lo que hace el Panel de Datos y el manual lo respalda: *"Los colores SEMÁNTICOS de los gráficos
+(verde=aprobó, amarillo=en curso, rojo=retirado…) NO cambian con el tema — el significado del
+color es invariante."*
+
+Hoy **todos** los campos usan resaltado azul contra gris, incluidos los que tienen significado
+propio. Eso es desaprovecharlo. Los campos con estado intrínseco pasan a color semántico:
+
+| Campo | Valor | Color | Hex |
+|---|---|---|---|
+| `seleccionado` | sí | Verde | `#6EA050` |
+| | no | Gris | `#a8adb4` |
+| `retirado` | sí | Rojo | `#C12D4C` |
+| | no | Verde | `#6EA050` |
+| | no aplica | Gris | `#a8adb4` |
+| `estado_final`, `fase_max_alcanzada` | completado | Verde | `#6EA050` |
+| | en curso | Amarillo | `#EEC935` |
+| | retirado / sin iniciar | Rojo | `#C12D4C` |
+| `enrutado_fuera_cobertura` | sí | Amarillo | `#EEC935` |
+
+**El resto de campos se queda en resaltado azul/gris.** Un campo como `ciudad` o `ingreso_hogar`
+no tiene estados buenos ni malos, y pintarlos de colores inventaría un juicio que el dato no hace.
+
+**Regla dura:** el color semántico es invariante. Verde siempre significa lo mismo, en cualquier
+gráfico y en cualquier tema. Nunca se reutiliza para "la serie 4".
+
+## 2. Acento por grupo de filtros
+
+Treinta tarjetas seguidas se leen como una masa. Cada grupo lleva una franja fina de color en su
+encabezado, tomada de la paleta oficial:
+
+| Grupo | Color |
+|---|---|
+| Identidad y origen | Azul marca `#406C9E` |
+| Perfil | Azul sec. 2 `#83B6DD` |
+| Situación | Amarillo `#EEC935` |
+| Socioeconómico | Naranja `#D1793F` |
+| Capacidad | Verde `#6EA050` |
+| Origen del contacto | Azul sec. 1 `#6FA0BC` |
+| Resultado | Rojo `#C12D4C` |
+
+Es **decoración con función**: ayuda a ubicarse al hacer scroll. La franja va en el encabezado del
+grupo, no en cada tarjeta, y **no** se usa en las marcas de datos.
+
+## 3. Tarjetas glass
+
+Adoptar `.tarjeta-glass` del Panel de Datos —`bg-white/75` + `backdrop-blur` + borde y sombra por
+variables de tema— como contenedor de las tarjetas de filtro y de los gráficos. Es lo que más
+acerca el acabado, y no toca la legibilidad.
+
+## 4. Hero de partículas — solo en la pantalla de acceso
+
+La pantalla de login es una portada: ahí sí cabe el componente de firma. Gradiente azul profundo
+`#16283D → #2B4A6F → #406C9E`, partículas en los seis colores de la paleta, densidad ≤ 110.
+
+**Desaparece al entrar.** La pantalla de trabajo no lo lleva.
+
+## 5. Movimiento, con las reglas del manual
+
+- Entradas: fade + desplazamiento de 14-28 px, 0,5-0,7 s, `cubic-bezier(.22,1,.36,1)`, **una sola
+  vez**
+- Nada de animación en los números ni en los gráficos: si el conteo cambia, cambia y ya
+- **`prefers-reduced-motion` no es opcional** — es regla de oro 5 del manual
+
+## 6. Lo que ya decidimos y no se revisa
+
+El manual tiene una regla de oro 3: *"Azul de marca jamás como color de serie de datos (regla CVD
+ya validada)"*. En T14 la relajamos **a propósito y por escrito**, porque Samuel confirmó que la
+audiencia no tiene daltonismo y porque la razón declarada de esa regla es justamente el contraste
+CVD. Queda como excepción documentada, no como descuido. **No la reabras.**
+
+## Aceptación de T15
+
+- [ ] Color semántico aplicado **solo** a los campos de la tabla de §1; el resto sigue en resaltado
+- [ ] Verde, amarillo y rojo significan lo mismo en todos los gráficos, sin excepción
+- [ ] Franja de color por grupo, en el encabezado, nunca en marcas de datos
+- [ ] Tarjetas glass en filtros y gráficos
+- [ ] Hero de partículas **solo** en la pantalla de acceso
+- [ ] `prefers-reduced-motion` respetado en todo
+- [ ] Claro y oscuro verificados en ambos
+- [ ] El informe imprimible de T13 sigue saliendo en fondo blanco y sin efectos
+- [ ] Ningún efecto queda detrás de un gráfico o de texto pequeño
