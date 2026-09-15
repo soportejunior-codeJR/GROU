@@ -48,7 +48,24 @@
   }
 }
 
-html { background: var(--ground); }
+/* Fondo con la franja de azul intenso del Panel de Datos (BRAND-DIGITAL.md §1: derivados
+   oscuros del azul de marca, solo para fondos) y un halo claro arriba. Se funde al
+   --ground antes de llegar a los datos. */
+html {
+  min-height: 100%;
+  background-color: var(--ground);
+  background-image:
+    radial-gradient(52rem 26rem at 50% -8rem, rgb(131 182 221 / 30%), transparent 70%),
+    linear-gradient(180deg, #16283D 0, #2B4A6F 220px, #406C9E 380px, var(--ground) 640px);
+  background-repeat: no-repeat;
+}
+@media (prefers-color-scheme: dark) {
+  html {
+    background-image:
+      radial-gradient(52rem 26rem at 50% -8rem, rgb(131 182 221 / 18%), transparent 70%),
+      linear-gradient(180deg, #0C1624 0, #16283D 220px, #2B4A6F 380px, var(--ground) 640px);
+  }
+}
 body {
   background: transparent;
   color: var(--ink);
@@ -63,11 +80,18 @@ body { font-variant-numeric: tabular-nums; }
 .eyebrow { color: var(--ink-2); font-family: var(--fuente-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
 .muted { color: var(--ink-2); font-size: 14px; }
 .topline { position: sticky; top: 0; z-index: 5; display: flex; justify-content: space-between; gap: 24px; align-items: end; border-bottom: 1px solid var(--rule); padding: 18px 0 24px; background: color-mix(in srgb, var(--ground) 92%, transparent); backdrop-filter: blur(10px); }
-.background-paths { position: fixed; inset: 0; z-index: -10; width: 100vw; height: 100vh; opacity: .42; pointer-events: none; }
-.background-path { fill: none; stroke: #406C9E; stroke-width: 2; stroke-linecap: round; opacity: .7; animation: background-flow 24s ease-in-out infinite alternate; }
-.background-path:nth-child(2) { animation-delay: -8s; }
-.background-path:nth-child(3) { animation-delay: -16s; }
-@keyframes background-flow { from { transform: translateX(-3%) translateY(1%); } to { transform: translateX(3%) translateY(-1%); } }
+.shell { margin: 36px auto 48px; }
+/* Trazos de fondo: dos capas espejadas como el Panel de Datos (opacidad total ≤ 0,6). */
+.background-paths { position: fixed; inset: 0; z-index: -10; overflow: hidden; pointer-events: none; color: #406C9E; }
+.background-paths-capa { position: absolute; inset: 0; width: 100%; height: 100%; }
+.background-paths-capa-a { opacity: .6; }
+.background-paths-capa-b { opacity: .4; transform: scaleX(-1); }
+.background-path { fill: none; animation: trazo-fluir 22s linear infinite; }
+@keyframes trazo-fluir {
+  0%, 100% { stroke-dasharray: .3 1; stroke-dashoffset: 0; opacity: .35; }
+  50% { stroke-dasharray: 1 1; stroke-dashoffset: -1; opacity: .7; }
+}
+@media (prefers-color-scheme: dark) { .background-paths { color: #83B6DD; } }
 .export-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 .button { border-radius: 4px; padding: 8px 12px; font-size: 13px; cursor: pointer; }
 .button-secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }

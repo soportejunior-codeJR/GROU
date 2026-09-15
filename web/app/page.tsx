@@ -438,11 +438,14 @@ function csv(v: string | number | boolean | null) {
 }
 function Marco({ children }: { children: React.ReactNode }) {
   return (
-    <main className="shell">
+    <>
+      {/* Fuera de .shell: su backdrop-filter atrapaba el position:fixed dentro de la tarjeta. */}
       <BackgroundPaths />
-      <p className="eyebrow">Fundación ROFÉ</p>
-      <h1>Panel de Convocatoria JC</h1>
-      {children}
-    </main>
+      <main className="shell">
+        <p className="eyebrow">Fundación ROFÉ</p>
+        <h1>Panel de Convocatoria JC</h1>
+        {children}
+      </main>
+    </>
   );
 }
