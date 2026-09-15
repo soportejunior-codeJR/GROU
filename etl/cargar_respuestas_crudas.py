@@ -17,6 +17,7 @@ from normalizar_convocatoria import clave_pregunta
 
 ROOT = Path(__file__).parent
 OUT = ROOT / "salida"
+WRITE_BATCH = 100
 EXCLUIDAS = {"_fuente", "_fila", "_convocatoria", "_pais", "_pais_archivo"}
 ESPERADAS = {
     "raw_2025_CO.jsonl": 7977,
@@ -134,11 +135,11 @@ def main() -> int:
         raise SystemExit(1)
     if args.escribir:
         supa = Supabase(url, key)
-        for start in range(0, len(rows), BATCH):
+        for start in range(0, len(rows), WRITE_BATCH):
             supa.request("POST", "postulaciones_respuestas",
                          params={"on_conflict": "postulacion_id"},
                          headers={**supa.headers, "Prefer": "resolution=merge-duplicates,return=minimal"},
-                         json=rows[start:start + BATCH])
+                         json=rows[start:start + WRITE_BATCH])
         print(f"escritas: {len(rows)}")
     else:
         print("modo: dry-run")
