@@ -10,7 +10,8 @@
     "start": "next start",
     "lint": "next lint",
     "dataset": "node scripts/construir-dataset.mjs",
-    "verificar-acceso": "node scripts/verificar-acceso.mjs"
+    "verificar-acceso": "node scripts/verificar-acceso.mjs",
+    "test:exportar-fila": "node --experimental-strip-types scripts/test-exportar-fila.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",

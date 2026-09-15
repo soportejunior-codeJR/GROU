@@ -250,12 +250,12 @@ function Explorador({ ds }: { ds: Dataset }) {
   };
   const exportarPii = async () => {
     const total = indices.length;
-    if (total > 5000) {
-      window.alert('Filtra más: el máximo por exportación es de 5.000 filas.');
+    if (total > 3000) {
+      window.alert('Filtra más: el máximo por exportación es de 3.000 filas.');
       return;
     }
     const confirmado = window.confirm(
-      `Vas a exportar ${total.toLocaleString('es-CO')} filas con estos campos: id_publico, cédula, nombres, apellidos, email, celular, ciudad, convocatoria y seleccionado. ¿Continuar?`,
+      `Vas a exportar ${total.toLocaleString('es-CO')} filas con la fila completa del formulario: todas las respuestas, incluidos datos personales y de acudientes. ¿Continuar?`,
     );
     if (!confirmado) return;
     const { data } = await clienteAuth().auth.getSession();
@@ -282,7 +282,7 @@ function Explorador({ ds }: { ds: Dataset }) {
     const blob = await response.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'postulaciones_con_datos_personales.csv';
+    a.download = 'postulaciones_fila_completa.csv';
     a.click();
     URL.revokeObjectURL(a.href);
   };
