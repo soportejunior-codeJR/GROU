@@ -1,7 +1,12 @@
 # GROU
 
-Panel de convocatoria de Jovenes creaTIvos: explorador con filtros en cascada sobre el universo
-completo de postulantes de 4 paises y 2 convocatorias (24.203 filas de formulario).
+Panel de convocatoria de Jovenes creaTIvos: Explorador y Distribuciones con filtros en cascada
+sobre el universo completo de postulantes de 4 paises y 2 convocatorias (24.203 filas de formulario).
+
+La beta incluye gráficos interactivos que filtran, comparación de seleccionadas contra no
+seleccionadas e informe imprimible con el estado de los filtros. El Embudo no se construyó:
+las fuentes de las fases posteriores no están disponibles y mostrarlo insinuaría datos que no
+podemos respaldar.
 
 Proyecto completo — **back y front**. La base de datos es lo que hace posible cada consulta;
 el panel es la ultima capa.

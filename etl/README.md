@@ -10,14 +10,14 @@ Contrato completo: `docs/procesos/panel-convocatoria-jc-spec-codex.md` en el rep
 ```
 Downloads/*.xlsx|*.csv
    │
-   ├─ T1  extraer_convocatoria.py         -> salida/raw_<conv>_<pais>.jsonl     PENDIENTE
-   ├─ T2  normalizar_convocatoria.py      -> salida/payload.json                PENDIENTE
+   ├─ T1  extraer_convocatoria.py         -> salida/raw_<conv>_<pais>.jsonl     LISTO
+   ├─ T2  normalizar_convocatoria.py      -> salida/payload.json                LISTO
    │                                         + salida/preguntas_sin_mapear.txt
    ├─ T3  migraciones/001_esquema_inicial.sql   (DDL + RLS deny-all)            LISTO
-   ├─ T4  cargar_convocatoria.py          -> Supabase convocatoria-jc           PENDIENTE
-   ├─ T5  cruzar_canon.py                 -> resultado_seleccion + resultado_programa  PENDIENTE
+   ├─ T4  cargar_convocatoria.py          -> Supabase convocatoria-jc           LISTO
+   ├─ T5  cruzar_canon.py                 -> resultado_seleccion + resultado_programa  LISTO
    ├─ T6  migraciones/002_vistas.sql      (v_analisis_postulaciones + cuadres)  LISTO
-   └─ T7  test_integridad_convocatoria.py (15 pruebas; sale != 0 si algo falla) PENDIENTE
+   └─ T7  test_integridad_convocatoria.py (18 pruebas; sale != 0 si algo falla) LISTO
 ```
 
 **T3 y T6 ya estan escritas y verificadas** contra un PostgreSQL 16 limpio: se aplican

@@ -280,6 +280,7 @@ exactamente 832.
 Un solo caso, ya acotado a 2026:
 
 ```
+
 canon: cedula C  (una persona del canon, Paysandú)
   id 23989  cedula C con 1 digito distinto   2025-11-26  Paysandú  (UY, conv. 2026)
   id 24012  cedula C con 2 digitos distintos  2025-12-05  Paysandú  (UY, conv. 2026)
@@ -320,6 +321,23 @@ fila con `seleccionado=false`, jamás una fila ausente. Al terminar,
 `count(resultado_seleccion) == count(postulaciones)`.
 
 `resultado_programa` (retiro, avance, cursos aprobados) solo para las marcadas.
+
+## Cierre — 2026-09-14
+
+El plan de cierre quedó ejecutado hasta producción. La suite T7 terminó en 18/18; el build
+hornea el dataset real (`es_ejemplo=false`) y T11 verificó el acceso externo en producción en
+6/6. El Explorador conserva filtros en cascada, URL y CSV sin PII; T17 agrega filtros desde los
+gráficos; T18 agrega Distribuciones seleccionadas/no seleccionadas; T13 mantiene el informe
+imprimible. La Fase 3 no tuvo la revisión manual con la sesión autorizada de soporte junior.
+
+Números finales comprobados: seleccionadas 2025 = 722, 2026 = 832, total = 1.554; `datos_curso`
+con datos = 1.335, sin dato = 219, no aplica = 22.649. La base reporta 40 filas con
+`duplicado_de` y 38 IDs apuntados; el dataset conserva las 40 filas. El Embudo no se construyó
+porque las fuentes de las fases posteriores no están disponibles.
+
+Pendientes fuera del alcance de Codex: la revisión manual de los nueve recorridos con una sesión
+autorizada y la prueba manual de exportación PII. No se probaron exportaciones con datos
+personales ni se modificó la configuración de Vercel.
 
 En `matches_ambiguos.csv` registra **todo lo resuelto por las Reglas 1 y 2**, no solo lo que quede
 sin resolver: son 6 filas que una persona debe poder auditar después.
