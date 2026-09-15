@@ -318,9 +318,7 @@ function Control({
               <input
                 type="checkbox"
                 checked={selected.includes(i)}
-                onChange={() =>
-                  cambiar(campo, alternarFiltro(actual, { tipo: def.tipo as 'cat' | 'multi', indice: i }))
-                }
+                onChange={() => cambiar(campo, alternarFiltro(actual, { tipo: def.tipo as 'cat' | 'multi', indice: i }))}
               />{' '}
               <span>{value}</span> <small>{formatearConteo(counts[i] ?? 0, denominator)}</small>
             </label>
