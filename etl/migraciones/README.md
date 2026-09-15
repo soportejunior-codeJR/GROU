@@ -10,6 +10,7 @@ Dos archivos, en este orden. Ambos son **idempotentes**: volver a correrlos no r
 | `004_export_log.sql` | T10.1 | Registro de exportaciones PII autorizadas |
 | `005_cursos.sql` | T12 | Campos de avance y cursos del programa |
 | `006_recuperar_seleccionados_2025.sql` | T12 | Recuperación documentada de seleccionados 2025 |
+| `007_postulaciones_respuestas.sql` | T20 | Fila completa del formulario, solo `service_role` |
 
 Proyecto destino: **`convocatoria-jc`** (`CONV_SUPABASE_URL`). No confundir con
 `panel-datos-rofe`, que en este proyecto es solo lectura y solo en T5.

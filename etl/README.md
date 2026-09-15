@@ -17,7 +17,8 @@ Downloads/*.xlsx|*.csv
    ├─ T4  cargar_convocatoria.py          -> Supabase convocatoria-jc           LISTO
    ├─ T5  cruzar_canon.py                 -> resultado_seleccion + resultado_programa  LISTO
    ├─ T6  migraciones/002_vistas.sql      (v_analisis_postulaciones + cuadres)  LISTO
-   └─ T7  test_integridad_convocatoria.py (18 pruebas; sale != 0 si algo falla) LISTO
+   ├─ T7  test_integridad_convocatoria.py (19 pruebas; sale != 0 si algo falla) LISTO
+   └─ T20 cargar_respuestas_crudas.py     -> postulaciones_respuestas (fila completa) LISTO
 ```
 
 **T3 y T6 ya estan escritas y verificadas** contra un PostgreSQL 16 limpio: se aplican
@@ -40,6 +41,18 @@ pregunto"**. T2 tiene que alimentarla.
   (incidente real, 2026-09-08).
 - Todo cargador idempotente: correrlo dos veces seguidas deja el mismo estado.
 - **Ninguna fila se descarta nunca.** Ver el principio en el README de la raiz.
+
+## Fila completa para exportación PII
+
+Después de regenerar `salida/payload.json` o de recargar T4, ejecutar:
+
+```bash
+python etl/cargar_respuestas_crudas.py --escribir
+```
+
+El modo sin `--escribir` es el dry-run recomendado para revisar los conteos. El cargador
+valida el cruce completo antes de escribir y es idempotente; la tabla cruda solo la consulta
+el endpoint de exportación autorizado y nunca entra al dataset horneado ni a `/api/datos`.
 
 ## Dos bases, dos roles
 

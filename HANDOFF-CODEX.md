@@ -1660,3 +1660,16 @@ el build hornea `es_ejemplo=false` y T11 en producción terminó 6/6.
 Desviación: la revisión manual con la cuenta autorizada no pudo ejecutarse por falta de sesión;
 no se probaron exportaciones PII ni se modificó Vercel. El Embudo continúa fuera de alcance por
 falta de fuentes verificadas para sus fases posteriores.
+
+## Cierre T20 — fila completa del formulario
+
+La migración 007 y el cargador idempotente almacenan las respuestas crudas de las 24.203
+postulaciones en `postulaciones_respuestas` como arreglos ordenados. La carga verificada tiene
+estos conteos por fuente: 7.977, 90, 2.213, 351, 11.356, 1.430, 567 y 219; 95 preguntas distintas
+y máximo 53 preguntas por fila. La prueba 19 comprueba 24.203 filas, una por postulación, con
+primer elemento `Marca temporal` y ningún arreglo vacío.
+
+El export autorizado consulta esa tabla solo del lado servidor, en tandas, con límite de 3.000
+filas, guarda de 4 MB, neutralización de fórmulas y `export_log.alcance = 'fila_completa'`.
+La tabla permanece fuera del dataset horneado y de `/api/datos`; no se probó el export con PII
+en producción.
