@@ -176,6 +176,15 @@ def main():
     cursos_num = dataset.get("campos", {}).get("cursos_inscritos", {}).get("tipo") == "num"
     failures += not check(18, curso_counts == Counter({"Con datos": 1335, "Sin dato": 219, "No aplica": 22649}) and cursos_num,
                           f"datos_curso={dict(curso_counts)} cursos_inscritos={dataset.get('campos', {}).get('cursos_inscritos', {}).get('tipo')}")
+    respuestas = api.get("postulaciones_respuestas", "postulacion_id,respuestas", order="postulacion_id")
+    respuesta_ids = {x["postulacion_id"] for x in respuestas}
+    postulacion_ids = {x["id"] for x in posts}
+    completas = all(isinstance(x.get("respuestas"), list)
+                    and bool(x["respuestas"])
+                    and x["respuestas"][0].get("p") == "Marca temporal"
+                    for x in respuestas)
+    failures += not check(19, len(respuestas) == 24203 and respuesta_ids == postulacion_ids and completas,
+                          f"respuestas={len(respuestas)}")
     print(f"T7 {'FALLA' if failures else 'OK'}: fallas={failures}")
     return 1 if failures else 0
 
