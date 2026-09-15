@@ -101,3 +101,10 @@ El plan, la auditoria de fuentes y el contrato de las 9 tareas viven en el repo 
 
 - `docs/procesos/panel-convocatoria-jc.md` — fuentes auditadas, decisiones, gotchas, riesgos
 - `docs/procesos/panel-convocatoria-jc-spec-codex.md` — las 9 tareas, con criterio de aceptacion
+
+## Acabado visual T19
+
+La beta usa Inter autoalojada, fondo estático con la paleta ROFÉ y el logo oficial. La fecha de
+envío se explora como una onda por convocatoria, con atajos, rango y arrastre; sus filtros siguen
+siendo índices categóricos y conservan la URL, los chips y el CSV. Los gráficos muestran etiquetas
+de valor y el informe imprimible mantiene fondo blanco y gráficos vectoriales.

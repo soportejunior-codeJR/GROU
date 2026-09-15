@@ -1645,3 +1645,18 @@ El comportamiento correcto: la porción pulsada se resalta y **las demás siguen
   desde el gráfico
 - [ ] Todo operable con teclado; aviso de modo "al menos una" visible
 - [ ] `npm run build` limpio; claro y oscuro verificados
+
+## Cierre T19 — 2026-09-15
+
+Se completó el acabado visual del panel: Inter autoalojada, superficies opacas para legibilidad,
+fondo estático ROFÉ, logo oficial y el gráfico de onda de `fecha_envio`. La onda conserva el
+contrato categórico por índices, la URL, los chips y el CSV; incluye escala común, días vacíos,
+atajos, rango y arrastre.
+
+Las cifras verificadas de aceptación son: todo = 24.203; convocatoria 2025 = 10.631;
+convocatoria 2026 = 13.572; enero de 2026 = 8.626; 2026-01-27 = 3.605. T7 permanece en 18/18,
+el build hornea `es_ejemplo=false` y T11 en producción terminó 6/6.
+
+Desviación: la revisión manual con la cuenta autorizada no pudo ejecutarse por falta de sesión;
+no se probaron exportaciones PII ni se modificó Vercel. El Embudo continúa fuera de alcance por
+falta de fuentes verificadas para sus fases posteriores.
