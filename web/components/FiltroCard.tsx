@@ -10,6 +10,7 @@ import {
   type Modo,
 } from '@/lib/dataset';
 import GraficoFaceta from './GraficoFaceta';
+import GraficoFechaEnvio from './GraficoFechaEnvio';
 import { alternarFiltro } from '@/lib/filtros';
 import { rangosNumericos } from '@/lib/rangosNumericos';
 import type { RangoNumerico } from '@/lib/dataset';
@@ -145,7 +146,9 @@ export default function FiltroCard({
           ▥
         </button>
       </div>
-      {grafico ? (
+      {campo === 'fecha_envio' ? (
+        <GraficoFechaEnvio ds={ds} filtros={filtros} modo={modo} cambiar={cambiar} />
+      ) : grafico ? (
         <>
           <GraficoFaceta ds={ds} campo={campo} filtros={filtros} modo={modo} cambiar={cambiar} />
           {activo && (

@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { contarFacetas, type Dataset, type Filtro, type Filtros, type Modo } from '@/lib/dataset';
 import GraficoFaceta from './GraficoFaceta';
+import GraficoFechaEnvio from './GraficoFechaEnvio';
 import { LABELS } from './FiltroCard';
 import { camposOcultos } from '@/lib/camposPanel';
 import { describirFiltros } from '@/lib/describirFiltros';
@@ -65,7 +66,11 @@ export default function Informe({
         {campos.map((campo) => (
           <article className="report-chart" key={campo}>
             <h3>{LABELS[campo] ?? ds.campos[campo].etiqueta}</h3>
-            <GraficoFaceta ds={ds} campo={campo} filtros={filtros} modo={modo} cambiar={cambiar} />
+            {campo === 'fecha_envio' ? (
+              <GraficoFechaEnvio ds={ds} filtros={filtros} modo={modo} />
+            ) : (
+              <GraficoFaceta ds={ds} campo={campo} filtros={filtros} modo={modo} />
+            )}
           </article>
         ))}
       </div>
