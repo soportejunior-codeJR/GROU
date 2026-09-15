@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { CORREOS_PERMITIDOS } from '@/lib/auth.config';
+import { usuarioAutorizado } from '@/lib/auth.config';
 import { armarCsvFilaCompleta, type Respuesta } from '@/lib/exportarFila';
 
 export const dynamic = 'force-dynamic';
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   const supabaseAuth = createClient(URL_BASE, ANON_KEY);
   const { data: userData, error: userError } = await supabaseAuth.auth.getUser(token);
   const correo = userData?.user?.email?.trim().toLowerCase();
-  if (userError || !correo || !CORREOS_PERMITIDOS.includes(correo)) {
+  if (userError || !correo || !usuarioAutorizado(userData?.user)) {
     return NextResponse.json({ error: 'Sin acceso' }, { status: 401 });
   }
   let body: Body;

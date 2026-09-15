@@ -1,18 +1,16 @@
-// Login con Google restringido a una LISTA BLANCA de correos.
+// Login con Google para cuentas @tocaunavida.org (mas los correos explicitos de
+// lib/auth.config.ts).
 //
-// Deliberadamente distinto de panel-datos-rofe, que valida por dominio
-// (DOMINIO_PERMITIDO === 'tocaunavida.org'). Con validacion por dominio entra
-// cualquier cuenta del Workspace, y esta base tiene datos personales de ~21.400
-// personas, muchas menores de edad. Aqui entra quien este en la lista y nadie mas.
-//
-// Agregar personas = agregar correos en lib/auth.config.ts. No reintroducir el
-// chequeo por dominio "como respaldo": seria exactamente el agujero que la lista evita.
+// 2026-09-15: hasta ese dia era una lista blanca de un solo correo, a proposito, porque
+// la base tiene datos personales de ~21.400 personas, muchas menores. Samuel decidio
+// abrirlo a todo el dominio con acceso completo. La proteccion real esta en el servidor
+// (usuarioAutorizado exige cuenta de Google verificada); lo de este archivo es cortesia.
 'use client';
 
 import { createClient, type SupabaseClient, type Session } from '@supabase/supabase-js';
-import { CORREOS_PERMITIDOS } from './auth.config';
+import { correoConAcceso, DOMINIO_PERMITIDO } from './auth.config';
 
-export { CORREOS_PERMITIDOS } from './auth.config';
+export { CORREOS_PERMITIDOS, DOMINIO_PERMITIDO } from './auth.config';
 
 const URL_BASE = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
@@ -40,13 +38,20 @@ export function authConfigurada(): boolean {
 }
 
 export function correoPermitido(email: string | undefined | null): boolean {
-  if (!email) return false;
-  return CORREOS_PERMITIDOS.includes(email.trim().toLowerCase());
+  return correoConAcceso(email);
 }
 
 export async function iniciarSesionGoogle() {
   const redirectTo = typeof window !== 'undefined' ? window.location.origin : undefined;
-  await clienteAuth().auth.signInWithOAuth({ provider: 'google', options: { redirectTo } });
+  await clienteAuth().auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo,
+      // hd: Google muestra primero las cuentas del Workspace (solo interfaz, no seguridad).
+      // select_account: deja elegir otra cuenta si el navegador tiene una personal abierta.
+      queryParams: { hd: DOMINIO_PERMITIDO, prompt: 'select_account' },
+    },
+  });
 }
 
 export async function cerrarSesion() {

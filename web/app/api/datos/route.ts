@@ -1,10 +1,11 @@
-// Sirve el dataset solo a quien tenga sesion valida Y este en la lista blanca.
+// Sirve el dataset solo a quien tenga sesion valida de Google con cuenta autorizada
+// (@tocaunavida.org o correo explicito, ver lib/auth.config.ts).
 //
 // La validacion del cliente (lib/auth.ts) es cortesia para la interfaz; ESTA es la
-// que protege. Sin token o con un correo fuera de la lista: 401, sin cuerpo.
+// que protege. Sin token o sin autorizacion: 401, sin cuerpo.
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { CORREOS_PERMITIDOS } from '@/lib/auth.config';
+import { usuarioAutorizado } from '@/lib/auth.config';
 import datos from '@/data/postulaciones.json';
 
 export const dynamic = 'force-dynamic';
@@ -21,9 +22,8 @@ export async function GET(request: Request) {
 
   const supabase = createClient(URL_BASE, ANON_KEY);
   const { data, error } = await supabase.auth.getUser(token);
-  const correo = data?.user?.email?.trim().toLowerCase();
 
-  if (error || !correo || !CORREOS_PERMITIDOS.includes(correo)) {
+  if (error || !usuarioAutorizado(data?.user)) {
     return NextResponse.json({ error: 'Sin acceso' }, { status: 401 });
   }
 

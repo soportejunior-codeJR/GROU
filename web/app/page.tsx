@@ -158,7 +158,7 @@ export default function Pagina() {
           <div className="login-content">
             <div className="login-logo"><Image src="/logo-rofe.png" alt="Fundación ROFÉ — Toca una vida" width={352} height={409} priority /></div>
             <p className="muted">
-              Este panel contiene datos personales y está limitado a cuentas autorizadas.
+              Este panel contiene datos personales. Entra con tu cuenta @tocaunavida.org.
             </p>
             <button onClick={iniciarSesionGoogle} className="button button-primary">
               Entrar con Google
@@ -171,7 +171,8 @@ export default function Pagina() {
     return (
       <Marco>
         <p className="muted">
-          La cuenta <b>{correo}</b> no está autorizada.
+          La cuenta <b>{correo}</b> no está autorizada. Sal y vuelve a entrar con tu cuenta
+          @tocaunavida.org.
         </p>
         <button onClick={cerrarSesion} className="button button-primary">
           Salir
