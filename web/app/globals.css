@@ -109,7 +109,6 @@ section h2 { font-size: 18px; border-bottom: 1px solid var(--rule); padding-bott
 .group-red { --group-color: #C12D4C; }
 .filtergrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
 .filter-card { border: 1px solid var(--rule); border-radius: 5px; padding: 10px 12px; min-width: 0; background: var(--surface); min-height: 92px; }
-.filter-card:has(.wave-chart) { grid-column: 1 / -1; }
 .filter-card, .report-chart { background: var(--surface); box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 8%, transparent); }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .chart-toggle { border: 0; background: transparent; color: var(--ink-3); cursor: pointer; padding: 2px 5px; }
@@ -159,21 +158,6 @@ select { padding: 6px; border: 1px solid var(--rule); border-radius: 3px; backgr
 .histogram-bin small { color: var(--ink-3); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .histogram-bar-button { width: 100%; border: 0; padding: 0; min-height: 2px; border-radius: 4px 4px 0 0; cursor: pointer; }
 .histogram-bar-button:disabled { cursor: default; }
-.wave-controls { display: grid; gap: 10px; margin: 8px 0 14px; }
-.wave-shortcuts, .wave-range, .wave-granularity { display: flex; flex-wrap: wrap; gap: 6px; align-items: end; }
-.wave-range label { display: grid; gap: 3px; font-size: 12px; font-weight: 600; }
-.wave-range input { padding: 5px; border: 1px solid var(--rule); border-radius: 3px; background: var(--surface); color: var(--ink); }
-.wave-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.wave-panel { min-width: 0; }
-.wave-panel h3 { margin: 0 0 6px; font-size: 14px; }
-.wave-svg { display: block; width: 100%; height: auto; overflow: visible; }
-.wave-area { fill: color-mix(in srgb, var(--chart-selected) 14%, transparent); }
-.wave-point-selected { fill: var(--chart-selected); stroke: var(--surface); stroke-width: 1; cursor: pointer; }
-.wave-point-rest { fill: color-mix(in srgb, var(--semantic-neutral) 35%, transparent); stroke: var(--surface); stroke-width: 1; cursor: pointer; }
-.wave-peak { fill: var(--chart-selected); stroke: var(--surface); stroke-width: 2; }
-.wave-peak-label { fill: var(--ink); font-size: 12px; font-weight: 600; }
-.wave-tooltip { margin: 8px 0; padding: 8px; border: 1px solid var(--rule); border-radius: 4px; background: var(--surface-2); font-size: 12px; }
-.wave-details { margin-top: 10px; }
 /* Táctil: sin retraso de doble toque ni destello gris. */
 .chart-labels button, .bar-label, .bar-row [role="button"], .histogram-bar-button, .donut [role="button"] { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 /* Dedo en vez de puntero: zonas de toque de ~40 px. Las áreas extra son invisibles (::after),
@@ -231,7 +215,6 @@ th { background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
 @media (max-width: 700px) { .topline { align-items: start; flex-direction: column; } .export-actions { justify-content: flex-start; } .shell { padding: 26px 12px 60px; } }
 @media (max-width: 420px) { .shell { padding-left: 8px; padding-right: 8px; } .filtergrid { grid-template-columns: 1fr; } .topline { margin: 0 -8px; padding-left: 8px; padding-right: 8px; } .topline h1 { font-size: 25px; } .export-actions, .export-actions .button { width: 100%; } .bar-row { grid-template-columns: 1fr 1.3fr auto; } }
 @media (max-width: 420px) { .brand-heading { gap: 8px; } .brand-heading > img { height: 48px; } .brand-heading h1 { font-size: 25px; } }
-@media (max-width: 700px) { .wave-panels { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
 }
@@ -249,6 +232,6 @@ th { background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
   .report-chart { background: #fff !important; color: #111 !important; border-color: #bbb; box-shadow: none !important; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .report-chart .chart, .report-chart svg, .report-chart span { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .print-url { position: fixed; bottom: -10mm; left: 0; right: 0; }
-  .login-hero, .hero-particle, .fondo-rofe, .wave-controls, .wave-tooltip { display: none !important; }
+  .login-hero, .hero-particle, .fondo-rofe { display: none !important; }
   .brand-heading > img, .report-logo { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }
