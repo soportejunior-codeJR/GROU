@@ -140,6 +140,23 @@ select { padding: 6px; border: 1px solid var(--rule); border-radius: 3px; backgr
 .histogram-bin small { color: var(--ink-3); font-size: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .histogram-bar-button { width: 100%; border: 0; padding: 0; min-height: 2px; border-radius: 4px 4px 0 0; cursor: pointer; }
 .histogram-bar-button:disabled { cursor: default; }
+/* Táctil: sin retraso de doble toque ni destello gris. */
+.chart-labels button, .bar-label, .bar-row [role="button"], .histogram-bar-button, .donut [role="button"] { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+/* Dedo en vez de puntero: zonas de toque de ~40 px. Las áreas extra son invisibles (::after),
+   así la altura de cada barra sigue siendo proporcional a su conteo. */
+@media (pointer: coarse) {
+  .chart-labels { gap: 4px; max-height: 176px; font-size: 13px; }
+  .chart-labels button { min-height: 40px; padding: 6px 8px; border-radius: 6px; }
+  .chart-labels button[aria-pressed="true"] { background: color-mix(in srgb, var(--chart-selected) 12%, transparent); }
+  .bar-row { min-height: 40px; font-size: 13px; }
+  .bar-label { align-self: stretch; }
+  .bar-row [role="button"] { position: relative; height: 14px; }
+  .bar-row [role="button"]::after { content: ""; position: absolute; inset: -13px 0; }
+  .histogram-bars { height: 120px; gap: 4px; }
+  .histogram-bin small { font-size: 10px; }
+  .histogram-bar-button { position: relative; }
+  .histogram-bar-button:not(:disabled)::after { content: ""; position: absolute; left: -2px; right: -2px; bottom: 0; height: max(100%, 44px); }
+}
 .tablehead { display: flex; justify-content: space-between; align-items: baseline; }
 .tablewrap { overflow: auto; border: 1px solid var(--rule); border-radius: 5px; }
 table { border-collapse: collapse; width: 100%; font-size: 13px; }

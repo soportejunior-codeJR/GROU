@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { contarFacetas, type Dataset, type Filtros, type Modo } from '@/lib/dataset';
+import { contarFacetas, type Dataset, type Filtro, type Filtros, type Modo } from '@/lib/dataset';
 import GraficoFaceta from './GraficoFaceta';
 import { LABELS } from './FiltroCard';
 import { camposOcultos } from '@/lib/camposPanel';
@@ -13,12 +13,15 @@ export default function Informe({
   modo,
   indices,
   seleccionadas,
+  cambiar,
 }: {
   ds: Dataset;
   filtros: Filtros;
   modo: Modo;
   indices: Int32Array;
   seleccionadas: number;
+  /** En pantalla los gráficos del informe filtran igual que los del Explorador (clic o toque). */
+  cambiar: (campo: string, filtro: Filtro | null) => void;
 }) {
   const campos = useMemo(
     () =>
@@ -62,7 +65,7 @@ export default function Informe({
         {campos.map((campo) => (
           <article className="report-chart" key={campo}>
             <h3>{LABELS[campo] ?? ds.campos[campo].etiqueta}</h3>
-            <GraficoFaceta ds={ds} campo={campo} filtros={filtros} modo={modo} />
+            <GraficoFaceta ds={ds} campo={campo} filtros={filtros} modo={modo} cambiar={cambiar} />
           </article>
         ))}
       </div>

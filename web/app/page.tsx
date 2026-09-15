@@ -399,7 +399,14 @@ function Explorador({ ds }: { ds: Dataset }) {
         </div>
       )}
       {informe && (
-        <Informe ds={ds} filtros={filtros} modo={modo} indices={indices} seleccionadas={selected} />
+        <Informe
+          ds={ds}
+          filtros={filtros}
+          modo={modo}
+          indices={indices}
+          seleccionadas={selected}
+          cambiar={cambiar}
+        />
       )}
       <div className="report-trigger no-print">
         <button className="button button-primary" onClick={() => setInforme(!informe)}>

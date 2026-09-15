@@ -75,8 +75,11 @@ export default function GraficoFaceta({ ds, campo, filtros, modo, cambiar }: Pro
   return (
     <div className="chart">
       <p className="chart-note">
-        Conteo sobre los demás filtros{cambiar ? ' · clic para filtrar' : ''}
-        {cambiar && modo === 'AL_MENOS_UNA' ? ' · cada clic suma personas' : ''}
+        Conteo sobre los demás filtros
+        {cambiar && <span className="no-print"> · toca o haz clic para filtrar</span>}
+        {cambiar && modo === 'AL_MENOS_UNA' && (
+          <span className="no-print"> · cada toque suma personas</span>
+        )}
       </p>
       {chart}
     </div>
@@ -277,7 +280,7 @@ function Histograma({
     <div className="histogram">
       <p className="chart-note">
         Rango elegido · {formatCount(base.length, denominator)} filas
-        {cambiar ? ' · clic para filtrar' : ''}
+        {cambiar && <span className="no-print"> · toca o haz clic para filtrar</span>}
       </p>
       <div className="histogram-bars">
         {bins.map((bin) => (
