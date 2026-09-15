@@ -48,23 +48,9 @@
   }
 }
 
-/* Fondo con la franja de azul intenso del Panel de Datos (BRAND-DIGITAL.md §1: derivados
-   oscuros del azul de marca, solo para fondos) y un halo claro arriba. Se funde al
-   --ground antes de llegar a los datos. */
 html {
   min-height: 100%;
   background-color: var(--ground);
-  background-image:
-    radial-gradient(52rem 26rem at 50% -8rem, rgb(131 182 221 / 30%), transparent 70%),
-    linear-gradient(180deg, #16283D 0, #2B4A6F 220px, #406C9E 380px, var(--ground) 640px);
-  background-repeat: no-repeat;
-}
-@media (prefers-color-scheme: dark) {
-  html {
-    background-image:
-      radial-gradient(52rem 26rem at 50% -8rem, rgb(131 182 221 / 18%), transparent 70%),
-      linear-gradient(180deg, #0C1624 0, #16283D 220px, #2B4A6F 380px, var(--ground) 640px);
-  }
 }
 body {
   background: transparent;
@@ -85,17 +71,24 @@ body { font-variant-numeric: tabular-nums; }
 .muted { color: var(--ink-2); font-size: 14px; }
 .topline { position: sticky; top: 0; z-index: 5; display: flex; justify-content: space-between; gap: 24px; align-items: end; border-bottom: 1px solid var(--rule); padding: 18px 0 24px; background: var(--surface); }
 .shell { margin: 36px auto 48px; }
-/* Trazos de fondo: dos capas espejadas como el Panel de Datos (opacidad total ≤ 0,6). */
-.background-paths { position: fixed; inset: 0; z-index: -10; overflow: hidden; pointer-events: none; color: #406C9E; }
-.background-paths-capa { position: absolute; inset: 0; width: 100%; height: 100%; }
-.background-paths-capa-a { opacity: .6; }
-.background-paths-capa-b { opacity: .4; transform: scaleX(-1); }
-.background-path { fill: none; animation: trazo-fluir 22s linear infinite; }
-@keyframes trazo-fluir {
-  0%, 100% { stroke-dasharray: .3 1; stroke-dashoffset: 0; opacity: .35; }
-  50% { stroke-dasharray: 1 1; stroke-dashoffset: -1; opacity: .7; }
-}
-@media (prefers-color-scheme: dark) { .background-paths { color: #83B6DD; } }
+.fondo-rofe { position: fixed; inset: 0; z-index: -10; pointer-events: none; background:
+  radial-gradient(42rem 30rem at 0% 0%, rgb(238 201 53 / 16%), transparent 70%),
+  radial-gradient(42rem 30rem at 100% 0%, rgb(209 121 63 / 16%), transparent 70%),
+  radial-gradient(42rem 30rem at 100% 52%, rgb(193 45 76 / 16%), transparent 70%),
+  radial-gradient(42rem 30rem at 0% 100%, rgb(64 108 158 / 16%), transparent 70%),
+  radial-gradient(42rem 30rem at 100% 100%, rgb(110 160 80 / 16%), transparent 70%); }
+.fondo-rofe::before { content: ""; position: absolute; inset: 0 0 auto; height: 6px; background: linear-gradient(90deg, #EEC935 20%, #D1793F 20% 40%, #C12D4C 40% 60%, #406C9E 60% 80%, #6EA050 80%); }
+@media (prefers-color-scheme: dark) { .fondo-rofe { background:
+  radial-gradient(42rem 30rem at 0% 0%, rgb(238 201 53 / 9%), transparent 70%),
+  radial-gradient(42rem 30rem at 100% 0%, rgb(209 121 63 / 9%), transparent 70%),
+  radial-gradient(42rem 30rem at 100% 52%, rgb(193 45 76 / 9%), transparent 70%),
+  radial-gradient(42rem 30rem at 0% 100%, rgb(64 108 158 / 9%), transparent 70%),
+  radial-gradient(42rem 30rem at 100% 100%, rgb(110 160 80 / 9%), transparent 70%); } }
+.brand-heading { display: flex; align-items: center; gap: 14px; }
+.brand-heading > img { width: auto; height: 64px; object-fit: contain; }
+.login-logo { display: flex; justify-content: center; margin-bottom: 20px; background: #fff; border-radius: 8px; padding: 6px; width: max-content; }
+.login-logo img { width: auto; height: 72px; }
+.report-logo { width: auto; height: 40px; display: block; background: #fff; padding: 3px; border-radius: 4px; }
 .export-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 .button { border-radius: 4px; padding: 8px 12px; font-size: 13px; cursor: pointer; }
 .button-secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
@@ -228,15 +221,16 @@ th { background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
 .distribution-line small { white-space: nowrap; }
 .distribution-positive { color: var(--semantic-success); white-space: nowrap; }
 .distribution-negative { color: var(--semantic-danger); white-space: nowrap; }
-.login-panel { position: relative; isolation: isolate; overflow: hidden; margin: 24px -20px -40px; padding: 100px 20px 120px; background: linear-gradient(135deg, #16283D, #2B4A6F 55%, #406C9E); border-radius: 10px; }
-.login-content { position: relative; z-index: 1; max-width: 520px; padding: 28px; color: #fff; background: rgb(22 40 61); border: 1px solid rgb(255 255 255 / 25%); border-radius: 10px; animation: login-enter .6s cubic-bezier(.22,1,.36,1) both; }
-.login-content .muted { color: rgb(255 255 255 / 85%); }
+.login-panel { position: relative; isolation: isolate; overflow: hidden; margin: 24px -20px -40px; padding: 100px 20px 120px; background: var(--ground); border-radius: 10px; }
+.login-content { position: relative; z-index: 1; max-width: 520px; padding: 28px; color: var(--ink); background: #fff; border: 1px solid var(--rule); border-radius: 10px; box-shadow: 0 12px 40px rgb(27 35 32 / 12%); animation: login-enter .6s cubic-bezier(.22,1,.36,1) both; }
+.login-content .muted { color: var(--ink-2); }
 .login-hero { position: absolute; inset: 0; z-index: -1; overflow: hidden; }
 .hero-particle { position: absolute; border-radius: 50%; opacity: .75; animation: particle-drift 9s ease-in-out infinite alternate; }
 @keyframes particle-drift { from { transform: translate3d(-8px, 10px, 0); } to { transform: translate3d(12px, -16px, 0); } }
 @keyframes login-enter { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
 @media (max-width: 700px) { .topline { align-items: start; flex-direction: column; } .export-actions { justify-content: flex-start; } .shell { padding: 26px 12px 60px; } }
 @media (max-width: 420px) { .shell { padding-left: 8px; padding-right: 8px; } .filtergrid { grid-template-columns: 1fr; } .topline { margin: 0 -8px; padding-left: 8px; padding-right: 8px; } .topline h1 { font-size: 25px; } .export-actions, .export-actions .button { width: 100%; } .bar-row { grid-template-columns: 1fr 1.3fr auto; } }
+@media (max-width: 420px) { .brand-heading { gap: 8px; } .brand-heading > img { height: 48px; } .brand-heading h1 { font-size: 25px; } }
 @media (max-width: 700px) { .wave-panels { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
@@ -255,5 +249,6 @@ th { background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
   .report-chart { background: #fff !important; color: #111 !important; border-color: #bbb; box-shadow: none !important; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .report-chart .chart, .report-chart svg, .report-chart span { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .print-url { position: fixed; bottom: -10mm; left: 0; right: 0; }
-  .login-hero, .hero-particle, .background-paths, .wave-controls, .wave-tooltip { display: none !important; }
+  .login-hero, .hero-particle, .fondo-rofe, .wave-controls, .wave-tooltip { display: none !important; }
+  .brand-heading > img, .report-logo { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }

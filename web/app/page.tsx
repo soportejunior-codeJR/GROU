@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import type { Session } from '@supabase/supabase-js';
 import {
   clienteAuth,
@@ -15,7 +16,6 @@ import Encabezado from '@/components/Encabezado';
 import TablaResultados from '@/components/TablaResultados';
 import Informe from '@/components/Informe';
 import HeroParticulas from '@/components/HeroParticulas';
-import BackgroundPaths from '@/components/BackgroundPaths';
 import { camposOcultos } from '@/lib/camposPanel';
 import { describirFiltros } from '@/lib/describirFiltros';
 import Distribuciones from '@/components/Distribuciones';
@@ -156,6 +156,7 @@ export default function Pagina() {
         <div className="login-panel">
           <HeroParticulas />
           <div className="login-content">
+            <div className="login-logo"><Image src="/logo-rofe.png" alt="Fundación ROFÉ — Toca una vida" width={352} height={409} priority /></div>
             <p className="muted">
               Este panel contiene datos personales y está limitado a cuentas autorizadas.
             </p>
@@ -439,11 +440,12 @@ function csv(v: string | number | boolean | null) {
 function Marco({ children }: { children: React.ReactNode }) {
   return (
     <>
-      {/* Fuera de .shell: su backdrop-filter atrapaba el position:fixed dentro de la tarjeta. */}
-      <BackgroundPaths />
+      <div className="fondo-rofe" aria-hidden="true" />
       <main className="shell">
-        <p className="eyebrow">Fundación ROFÉ</p>
-        <h1>Panel de Convocatoria JC</h1>
+        <div className="brand-heading">
+          <Image src="/logo-rofe.png" alt="Fundación ROFÉ — Toca una vida" width={352} height={409} priority />
+          <div><h1>Panel de Convocatoria JC</h1></div>
+        </div>
         {children}
       </main>
     </>

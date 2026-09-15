@@ -1,4 +1,5 @@
 import type { Dataset } from '@/lib/dataset';
+import Image from 'next/image';
 
 export default function Encabezado({
   ds,
@@ -16,8 +17,10 @@ export default function Encabezado({
   return (
     <header className="topline">
       <div>
-        <p className="eyebrow">Fundación ROFÉ · JÓVENES creaTIvos</p>
-        <h1>Explorador de convocatoria</h1>
+        <div className="brand-heading">
+          <Image src="/logo-rofe.png" alt="Fundación ROFÉ — Toca una vida" width={352} height={409} priority />
+          <div><h1>Explorador de convocatoria</h1></div>
+        </div>
         <p className="muted">
           {totalVigente.toLocaleString('es-CO')} de {ds.total.toLocaleString('es-CO')} postulaciones
           · {seleccionadas.toLocaleString('es-CO')} seleccionadas ·{' '}

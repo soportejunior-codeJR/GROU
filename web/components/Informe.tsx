@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import Image from 'next/image';
 import { contarFacetas, type Dataset, type Filtro, type Filtros, type Modo } from '@/lib/dataset';
 import GraficoFaceta from './GraficoFaceta';
 import GraficoFechaEnvio from './GraficoFechaEnvio';
@@ -45,6 +46,7 @@ export default function Informe({
     <section className="print-report" aria-label="Informe imprimible">
       <div className="report-header">
         <div>
+          <Image src="/logo-rofe.png" alt="Fundación ROFÉ — Toca una vida" width={352} height={409} className="report-logo" />
           <p className="eyebrow">Fundación ROFÉ · Jóvenes creaTIvos</p>
           <h2>Informe de convocatoria</h2>
           <p className="report-context">{filtrosTexto || 'Sin filtros aplicados'}</p>
