@@ -18,7 +18,7 @@ export default function Encabezado({
     <header className="topline">
       <div>
         <div className="brand-heading">
-          <Image src="/logo-rofe.png" alt="Fundación ROFÉ — Toca una vida" width={352} height={409} priority />
+          <Image src="/logo-rofe.png" alt="Fundación ROFÉ — Toca una vida" width={900} height={416} priority />
           <div><h1>Explorador de convocatoria</h1></div>
         </div>
         <p className="muted">

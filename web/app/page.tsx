@@ -156,7 +156,7 @@ export default function Pagina() {
         <div className="login-panel">
           <HeroParticulas />
           <div className="login-content">
-            <div className="login-logo"><Image src="/logo-rofe.png" alt="Fundación ROFÉ — Toca una vida" width={352} height={409} priority /></div>
+            <div className="login-logo"><Image src="/logo-rofe.png" alt="Fundación ROFÉ — Toca una vida" width={900} height={416} priority /></div>
             <p className="muted">
               Este panel contiene datos personales. Entra con tu cuenta @tocaunavida.org.
             </p>
@@ -444,7 +444,7 @@ function Marco({ children }: { children: React.ReactNode }) {
       <div className="fondo-rofe" aria-hidden="true" />
       <main className="shell">
         <div className="brand-heading">
-          <Image src="/logo-rofe.png" alt="Fundación ROFÉ — Toca una vida" width={352} height={409} priority />
+          <Image src="/logo-rofe.png" alt="Fundación ROFÉ — Toca una vida" width={900} height={416} priority />
           <div><h1>Panel de Convocatoria JC</h1></div>
         </div>
         {children}

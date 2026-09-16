@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --fuente-sans: 'Inter Variable', 'Segoe UI', system-ui, sans-serif;
+  --fuente-sans: 'Gilroy', 'Century Gothic', 'Trebuchet MS', Arial, sans-serif;
   --fuente-mono: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
   --ground: #f6f7f5;
   --surface: #ffffff;
@@ -85,7 +85,7 @@ body { font-variant-numeric: tabular-nums; }
   radial-gradient(42rem 30rem at 0% 100%, rgb(64 108 158 / 9%), transparent 70%),
   radial-gradient(42rem 30rem at 100% 100%, rgb(110 160 80 / 9%), transparent 70%); } }
 .brand-heading { display: flex; align-items: center; gap: 14px; }
-.brand-heading > img { width: auto; height: 64px; object-fit: contain; }
+.brand-heading > img { width: auto; height: 64px; object-fit: contain; background: #fff; padding: 4px 8px; border-radius: 6px; }
 .login-logo { display: flex; justify-content: center; margin-bottom: 20px; background: #fff; border-radius: 8px; padding: 6px; width: max-content; }
 .login-logo img { width: auto; height: 72px; }
 .report-logo { width: auto; height: 40px; display: block; background: #fff; padding: 3px; border-radius: 4px; }
