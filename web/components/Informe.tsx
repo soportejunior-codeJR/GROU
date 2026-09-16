@@ -65,10 +65,18 @@ export default function Informe({
           Descargar PDF
         </button>
       </div>
+      <p className="report-hint no-print">Toca una gráfica para filtrar; el informe y el Explorador se actualizan juntos.</p>
       <div className="report-grid">
         {campos.map((campo) => (
-          <article className="report-chart" key={campo}>
-            <h3>{LABELS[campo] ?? ds.campos[campo].etiqueta}</h3>
+          <article className={`report-chart${filtros[campo] ? ' report-chart-activa' : ''}`} key={campo}>
+            <div className="report-chart-title">
+              <h3>{LABELS[campo] ?? ds.campos[campo].etiqueta}</h3>
+              {filtros[campo] && (
+                <button type="button" className="clear no-print" onClick={() => cambiar(campo, null)}>
+                  Quitar filtro
+                </button>
+              )}
+            </div>
             <GraficoFaceta ds={ds} campo={campo} filtros={filtros} modo={modo} cambiar={cambiar} />
           </article>
         ))}

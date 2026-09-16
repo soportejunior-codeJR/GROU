@@ -188,7 +188,10 @@ th { background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
 .report-context { font-weight: 700; max-width: 900px; }
 .report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-top: 20px; }
 .report-chart { min-width: 0; border: 1px solid var(--rule); border-radius: 5px; padding: 12px; background: var(--surface); break-inside: avoid; }
+.report-chart-activa { border: 2px solid var(--chart-selected); }
+.report-chart-title { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .report-chart h3 { font-size: 14px; margin: 0 0 8px; }
+.report-hint { color: var(--ink-3); font-size: 13px; margin: 16px 0 -8px; }
 .print-url { color: var(--ink-3); font-size: 12px; overflow-wrap: anywhere; }
 .distributions { margin-top: 28px; }
 .distribution-head { display: flex; justify-content: space-between; gap: 18px; align-items: start; }
@@ -230,7 +233,7 @@ th { background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
   .report-header { color: #111; }
   .report-header .muted, .print-url { color: #333 !important; }
   .report-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  .report-chart { background: #fff !important; color: #111 !important; border-color: #bbb; box-shadow: none !important; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .report-chart, .report-chart-activa { background: #fff !important; color: #111 !important; border-color: #bbb; box-shadow: none !important; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .report-chart .chart, .report-chart svg, .report-chart span { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .print-url { position: fixed; bottom: -10mm; left: 0; right: 0; }
   .login-hero, .hero-particle, .fondo-rofe { display: none !important; }
