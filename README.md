@@ -108,3 +108,10 @@ La beta usa Inter autoalojada, fondo estático con la paleta ROFÉ y el logo ofi
 envío se explora como una onda por convocatoria, con atajos, rango y arrastre; sus filtros siguen
 siendo índices categóricos y conservan la URL, los chips y el CSV. Los gráficos muestran etiquetas
 de valor y el informe imprimible mantiene fondo blanco y gráficos vectoriales.
+
+## Informe interactivo T22
+
+Las gráficas del informe reutilizan el mismo filtro en cascada del Explorador: se puede hacer clic
+en porciones, etiquetas, barras y rangos, quitar el filtro desde la tarjeta y continuar con el
+mismo estado en la URL. El informe conserva los modos `TODAS`/`AL_MENOS_UNA` y el PDF oculta los
+controles interactivos y sus bordes de selección.

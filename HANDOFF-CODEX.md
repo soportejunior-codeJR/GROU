@@ -1673,3 +1673,10 @@ El export autorizado consulta esa tabla solo del lado servidor, en tandas, con l
 filas, guarda de 4 MB, neutralización de fórmulas y `export_log.alcance = 'fila_completa'`.
 La tabla permanece fuera del dataset horneado y de `/api/datos`; no se probó el export con PII
 en producción.
+
+## Cierre T22 — informe interactivo
+
+`Informe.tsx` pasa el mismo `cambiar` del Explorador a `GraficoFaceta`. Las tarjetas muestran el
+filtro activo y permiten quitarlo sin volver a los controles superiores; en impresión se ocultan
+la nota, el botón y el borde activo. La prueba manual autenticada queda pendiente porque el entorno
+local solicita inicio de sesión de Google.
