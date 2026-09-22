@@ -149,7 +149,9 @@ def main():
     dataset_path = ROOT.parent / "web" / "data" / "postulaciones.json"
     dataset = json.loads(dataset_path.read_text(encoding="utf-8")) if dataset_path.exists() else {}
     dataset_ok = dataset.get("es_ejemplo") is False and dataset.get("total") == 24203
-    derivados = {"datos_curso", "envio_duplicado", "fase_max_alcanzada"}
+    derivados = {"datos_curso", "envio_duplicado", "fase_max_alcanzada",
+                 "prueba_completada", "puntaje_prueba_pct", "formulario_completado",
+                 "preguntas_respondidas", "respuestas_validas", "pasa_fase2"}
     comparables = sorted((set(dataset.get("campos", {})) - derivados) & set(view[0] if view else {}))
     diferencias = {}
     if dataset_ok:
@@ -159,7 +161,8 @@ def main():
             if esperado != recibido:
                 diferencias[campo] = {"esperado": sum((esperado - recibido).values()),
                                       "recibido": sum((recibido - esperado).values())}
-    failures += not check(16, dataset_ok and len(comparables) == len(dataset.get("campos", {})) - len(derivados) and not diferencias,
+    expected_comparables = len(set(dataset.get("campos", {})) - derivados)
+    failures += not check(16, dataset_ok and len(comparables) == expected_comparables and not diferencias,
                           f"campos={len(comparables)} diferencias={diferencias}")
     programs=api.get("resultado_programa", "postulacion_id,cohorte,retirado,pct_avance,cursos_aprobados",
                      order="postulacion_id")
@@ -191,13 +194,23 @@ def main():
     fase2_posts = api.get("postulaciones", "id,convocatoria,pais", order="id")
     fase2_pii = api.get("postulaciones_pii", "postulacion_id,cedula_norm", order="postulacion_id")
     fase2_post_by_id = {x["id"]: x for x in fase2_posts}
-    fase2_key_counts = Counter((fase2_post_by_id[x["postulacion_id"]]["pais"], cedula_norm(x["cedula_norm"]))
-                               for x in fase2_pii
-                               if x["postulacion_id"] in fase2_post_by_id
-                               and fase2_post_by_id[x["postulacion_id"]]["convocatoria"] == "2026"
-                               and x.get("cedula_norm"))
-    fase2_matched = sum(fase2_key_counts.get((source["pais"], cedula), 0) == 1
-                        for cedula, source in fase2_chosen.items())
+    fase2_candidates = {}
+    for item in fase2_pii:
+        post = fase2_post_by_id.get(item["postulacion_id"])
+        if post and post["convocatoria"] == "2026" and item.get("cedula_norm"):
+            key = (post["pais"], cedula_norm(item["cedula_norm"]))
+            fase2_candidates.setdefault(key, [])
+            if post["id"] not in fase2_candidates[key]:
+                fase2_candidates[key].append(post["id"])
+    fase2_canonicas = {x["id"] for x in posts if not x.get("duplicado_de")}
+    fase2_matched_ids = set()
+    for cedula, source in fase2_chosen.items():
+        ids = fase2_candidates.get((source["pais"], cedula), [])
+        if len(ids) > 1:
+            ids = [post_id for post_id in ids if post_id in fase2_canonicas]
+        if len(ids) == 1:
+            fase2_matched_ids.add(ids[0])
+    fase2_matched = len(fase2_matched_ids)
     fase2_rows = api.get("resultado_fase2", "postulacion_id", order="postulacion_id")
     fase2_ids = {x["postulacion_id"] for x in fase2_rows}
     fase2_resultados = api.get("resultado_seleccion", "postulacion_id,fase_max_alcanzada",

@@ -7,8 +7,11 @@ import os
 from collections import defaultdict
 from pathlib import Path
 
-import truststore
-truststore.inject_into_ssl()
+try:
+    import truststore
+    truststore.inject_into_ssl()
+except ImportError:
+    pass
 import requests
 
 from cargar_convocatoria import BATCH, Supabase, cargar_env_local
@@ -116,10 +119,15 @@ def match_sources(api: Supabase, chosen: dict[str, dict]) -> tuple[list[dict], i
         post = post_by_id.get(item["postulacion_id"])
         if post and post["convocatoria"] == "2026" and item.get("cedula_norm"):
             candidates[(post["pais"], cedula_norm(item["cedula_norm"]))].append(post["id"])
+    results = fetch_all(api, "resultado_seleccion", "postulacion_id,duplicado_de", "postulacion_id")
+    duplicado_de = {x["postulacion_id"]: x.get("duplicado_de") for x in results}
     matched: list[dict] = []
     unmatched = 0
     for cedula, source in chosen.items():
         ids = candidates.get((source["pais"], cedula), [])
+        if len(ids) > 1:
+            canonicas = [post_id for post_id in ids if not duplicado_de.get(post_id)]
+            ids = canonicas if len(canonicas) == 1 else []
         if len(ids) != 1:
             unmatched += 1
             continue
