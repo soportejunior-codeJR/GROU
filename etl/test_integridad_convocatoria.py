@@ -4,7 +4,8 @@ from __future__ import annotations
 import json
 import os
 import re
-from collections import Counter
+import unicodedata
+from collections import Counter, defaultdict
 from pathlib import Path
 
 import truststore
@@ -83,6 +84,125 @@ def distribucion_dataset(ds, campo):
         else:
             salida.append(valor)
     return Counter(clave(x) for x in salida)
+
+
+def claves_fase3_independientes():
+    """Recalcula cédulas elegibles directamente de los Excel, sin importar el loader."""
+    from openpyxl import load_workbook
+
+    source_root = Path(r"C:\Users\EstudiantesJC\Downloads\2026-Fase3\extraido")
+    country_by_suffix = {"BAQ": "CO", "BOG": "CO", "CLO": "CO", "CTG": "CO",
+                         "MED": "CO", "ECU": "EC", "URY": "UY", "PAN": "PA"}
+    paths = sorted(source_root.glob("*/Tabla de Puntuación * PANEL *.xlsx"))
+
+    def norm(value):
+        text = "" if value is None else str(value).strip()
+        text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
+        return " ".join(text.casefold().split())
+
+    def find_columns(sheet, required):
+        for row_number, values in enumerate(sheet.iter_rows(values_only=True), start=1):
+            keys = {norm(value) for value in values}
+            if required.issubset(keys):
+                return row_number, {norm(value): index for index, value in enumerate(values)
+                                    if norm(value)}
+        return None, {}
+
+    def get(row, columns, field):
+        index = columns.get(field)
+        return None if index is None or index >= len(row) else row[index]
+
+    candidates = defaultdict(list)
+    blocked_files = 0
+    for path in paths:
+        country = country_by_suffix.get(path.parent.name[-3:])
+        if country is None:
+            blocked_files += 1
+            continue
+        workbook = load_workbook(path, read_only=True, data_only=True)
+        try:
+            if "GENERAL" not in workbook.sheetnames:
+                blocked_files += 1
+                continue
+            general = workbook["GENERAL"]
+            support_name = next((name for name in workbook.sheetnames if name.startswith("SOPORTE")), None)
+            if support_name is None:
+                blocked_files += 1
+                continue
+            support = workbook[support_name]
+            general_header, gc = find_columns(general, {"id", "email"})
+            support_header, sc = find_columns(support, {"email", "presente"})
+            required = {"grupo", "capitan", "jurado 1", "jurado 2", "total", "puntaje", "disponibilidad"}
+            if general_header is None or support_header is None or not required.issubset(gc):
+                blocked_files += 1
+                continue
+            header_values = next(general.iter_rows(min_row=general_header,
+                                                   max_row=general_header,
+                                                   values_only=True))
+            score_index, availability_index = gc["puntaje"], gc["disponibilidad"]
+            loose = [i for i in range(score_index + 1, availability_index)
+                     if i < len(header_values) and header_values[i] is not None
+                     and str(header_values[i]).strip().isdigit()]
+            support_by_email = defaultdict(list)
+            for row in support.iter_rows(min_row=support_header + 1, values_only=True):
+                email = "" if get(row, sc, "email") is None else str(get(row, sc, "email")).strip().casefold()
+                if email:
+                    support_by_email[email].append(norm(get(row, sc, "presente")))
+            parsed, zero_emails, no_emails, cumple_values = [], Counter(), Counter(), set()
+            for row_number, row in enumerate(general.iter_rows(min_row=general_header + 1,
+                                                                 values_only=True),
+                                             start=general_header + 1):
+                raw_id = get(row, gc, "id")
+                raw_email = get(row, gc, "email")
+                email = "" if raw_email is None else str(raw_email).strip().casefold()
+                if raw_id is None and not email:
+                    continue
+                if raw_id is None or not email:
+                    continue
+                try:
+                    cedula = str(int(raw_id))
+                except (TypeError, ValueError, OverflowError):
+                    continue
+                total = get(row, gc, "total")
+                try:
+                    total = None if total is None or str(total).strip() == "" else float(total)
+                except (TypeError, ValueError):
+                    total = None
+                if total == 0:
+                    zero_emails[email] += 1
+                if len(loose) == 1:
+                    cumple_values.add(norm(row[loose[0]] if loose[0] < len(row) else None))
+                attendance = support_by_email.get(email, [])
+                if len(attendance) == 1:
+                    present = attendance[0]
+                    if present == "no":
+                        no_emails[email] += 1
+                    attended = True if present == "si" else (False if present == "no" else None)
+                else:
+                    attended = None
+                score = get(row, gc, "puntaje")
+                try:
+                    score = None if score is None or str(score).strip() == "" else float(str(score).strip().rstrip("%"))
+                except (TypeError, ValueError):
+                    score = None
+                parsed.append({"key": (country, cedula), "attended": attended,
+                               "score": score, "file": path.name, "row": row_number})
+            file_blocked = (len(loose) != 1 or zero_emails != no_emails
+                            or cumple_values != {"cumple"})
+            if file_blocked:
+                blocked_files += 1
+                continue
+            for item in parsed:
+                if item["attended"] is not None:
+                    candidates[item["key"]].append(item)
+        finally:
+            workbook.close()
+    selected = set()
+    for key, rows in candidates.items():
+        winner = max(rows, key=lambda item: (item["attended"], item["score"] is not None,
+                                              item["score"] or -1, item["file"], item["row"]))
+        selected.add(key)
+    return selected, len(paths), blocked_files
 
 
 def distribucion_fuente(filas, campo, definicion):
@@ -219,6 +339,23 @@ def main():
                           for x in fase2_resultados)
     failures += not check(20, len(fase2_rows) == fase2_matched and fase1_remaining == 0,
                           f"resultado_fase2={len(fase2_rows)} matchean={fase2_matched} fase1={fase1_remaining}")
+    fase3_chosen, fase3_files, fase3_blocks = claves_fase3_independientes()
+    fase3_matched_ids = set()
+    for key in fase3_chosen:
+        ids = fase2_candidates.get(key, [])
+        if len(ids) > 1:
+            ids = [post_id for post_id in ids if post_id in fase2_canonicas]
+        if len(ids) == 1:
+            fase3_matched_ids.add(ids[0])
+    fase3_rows = api.get("resultado_fase3", "postulacion_id", order="postulacion_id")
+    fase3_resultados = {x["postulacion_id"]: x["fase_max_alcanzada"]
+                        for x in api.get("resultado_seleccion", "postulacion_id,fase_max_alcanzada",
+                                         order="postulacion_id")}
+    fase3_lower = sum(fase3_resultados.get(x["postulacion_id"]) in {"fase1", "fase2"}
+                      for x in fase3_rows)
+    failures += not check(21, len(fase3_rows) == len(fase3_matched_ids) and fase3_lower == 0,
+                          f"resultado_fase3={len(fase3_rows)} matchean={len(fase3_matched_ids)} "
+                          f"fase1_fase2={fase3_lower} archivos={fase3_files} archivos_bloqueados={fase3_blocks}")
     print(f"T7 {'FALLA' if failures else 'OK'}: fallas={failures}")
     return 1 if failures else 0
 
