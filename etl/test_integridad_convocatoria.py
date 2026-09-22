@@ -149,7 +149,7 @@ def main():
     dataset_path = ROOT.parent / "web" / "data" / "postulaciones.json"
     dataset = json.loads(dataset_path.read_text(encoding="utf-8")) if dataset_path.exists() else {}
     dataset_ok = dataset.get("es_ejemplo") is False and dataset.get("total") == 24203
-    derivados = {"datos_curso", "envio_duplicado"}
+    derivados = {"datos_curso", "envio_duplicado", "fase_max_alcanzada"}
     comparables = sorted((set(dataset.get("campos", {})) - derivados) & set(view[0] if view else {}))
     diferencias = {}
     if dataset_ok:
@@ -185,6 +185,27 @@ def main():
                     for x in respuestas)
     failures += not check(19, len(respuestas) == 24203 and respuesta_ids == postulacion_ids and completas,
                           f"respuestas={len(respuestas)}")
+    from cargar_fase2 import read_source, choose_sources, DEFAULT_SOURCE, cedula_norm
+    _, fase2_by_cedula = read_source(DEFAULT_SOURCE)
+    fase2_chosen = choose_sources(fase2_by_cedula)
+    fase2_posts = api.get("postulaciones", "id,convocatoria,pais", order="id")
+    fase2_pii = api.get("postulaciones_pii", "postulacion_id,cedula_norm", order="postulacion_id")
+    fase2_post_by_id = {x["id"]: x for x in fase2_posts}
+    fase2_key_counts = Counter((fase2_post_by_id[x["postulacion_id"]]["pais"], cedula_norm(x["cedula_norm"]))
+                               for x in fase2_pii
+                               if x["postulacion_id"] in fase2_post_by_id
+                               and fase2_post_by_id[x["postulacion_id"]]["convocatoria"] == "2026"
+                               and x.get("cedula_norm"))
+    fase2_matched = sum(fase2_key_counts.get((source["pais"], cedula), 0) == 1
+                        for cedula, source in fase2_chosen.items())
+    fase2_rows = api.get("resultado_fase2", "postulacion_id", order="postulacion_id")
+    fase2_ids = {x["postulacion_id"] for x in fase2_rows}
+    fase2_resultados = api.get("resultado_seleccion", "postulacion_id,fase_max_alcanzada",
+                               order="postulacion_id")
+    fase1_remaining = sum(x["postulacion_id"] in fase2_ids and x["fase_max_alcanzada"] == "fase1"
+                          for x in fase2_resultados)
+    failures += not check(20, len(fase2_rows) == fase2_matched and fase1_remaining == 0,
+                          f"resultado_fase2={len(fase2_rows)} matchean={fase2_matched} fase1={fase1_remaining}")
     print(f"T7 {'FALLA' if failures else 'OK'}: fallas={failures}")
     return 1 if failures else 0
 
