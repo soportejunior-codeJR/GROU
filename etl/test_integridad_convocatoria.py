@@ -191,17 +191,25 @@ def claves_fase3_independientes():
                             or cumple_values != {"cumple"})
             if file_blocked:
                 blocked_files += 1
-                continue
             for item in parsed:
-                if item["attended"] is not None:
-                    candidates[item["key"]].append(item)
+                if file_blocked:
+                    item["attended"] = None
+                # Una respuesta de asistencia indeterminada a nivel individual
+                # también se conserva; no equivale a ausencia ni se descarta.
+                candidates[item["key"]].append(item)
         finally:
             workbook.close()
-    selected = set()
+    selected = {}
     for key, rows in candidates.items():
-        winner = max(rows, key=lambda item: (item["attended"], item["score"] is not None,
-                                              item["score"] or -1, item["file"], item["row"]))
-        selected.add(key)
+        known = [item for item in rows if item["attended"] is not None]
+        if known:
+            winner = max(known, key=lambda item: (item["attended"], item["score"] is not None,
+                                                   item["score"] or -1, item["file"], -item["row"]))
+        else:
+            with_score = [item for item in rows if item["score"] is not None]
+            winner = (max(with_score, key=lambda item: item["score"])
+                      if with_score else min(rows, key=lambda item: (item["file"], item["row"])))
+        selected[key] = winner
     return selected, len(paths), blocked_files
 
 
@@ -341,13 +349,16 @@ def main():
                           f"resultado_fase2={len(fase2_rows)} matchean={fase2_matched} fase1={fase1_remaining}")
     fase3_chosen, fase3_files, fase3_blocks = claves_fase3_independientes()
     fase3_matched_ids = set()
-    for key in fase3_chosen:
+    fase3_sin_dato_ids = set()
+    for key, source in fase3_chosen.items():
         ids = fase2_candidates.get(key, [])
         if len(ids) > 1:
             ids = [post_id for post_id in ids if post_id in fase2_canonicas]
         if len(ids) == 1:
             fase3_matched_ids.add(ids[0])
-    fase3_rows = api.get("resultado_fase3", "postulacion_id", order="postulacion_id")
+            if source["attended"] is None:
+                fase3_sin_dato_ids.add(ids[0])
+    fase3_rows = api.get("resultado_fase3", "postulacion_id,asistio", order="postulacion_id")
     fase3_resultados = {x["postulacion_id"]: x["fase_max_alcanzada"]
                         for x in api.get("resultado_seleccion", "postulacion_id,fase_max_alcanzada",
                                          order="postulacion_id")}
@@ -356,6 +367,12 @@ def main():
     failures += not check(21, len(fase3_rows) == len(fase3_matched_ids) and fase3_lower == 0,
                           f"resultado_fase3={len(fase3_rows)} matchean={len(fase3_matched_ids)} "
                           f"fase1_fase2={fase3_lower} archivos={fase3_files} archivos_bloqueados={fase3_blocks}")
+    fase3_null_ids = {x["postulacion_id"] for x in fase3_rows if x["asistio"] is None}
+    fase3_below = {x["postulacion_id"] for x in fase3_rows
+                   if fase3_resultados.get(x["postulacion_id"]) in {"fase1", "fase2"}}
+    failures += not check(22, fase3_null_ids == fase3_sin_dato_ids and not fase3_below,
+                          f"asistencia_sin_dato={len(fase3_null_ids)} esperadas={len(fase3_sin_dato_ids)} "
+                          f"fase_max_inferior={len(fase3_below)}")
     print(f"T7 {'FALLA' if failures else 'OK'}: fallas={failures}")
     return 1 if failures else 0
 
