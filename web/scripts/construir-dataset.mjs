@@ -52,6 +52,8 @@ const NUMERICOS = new Set([
   'id_publico',
   'edad', 'estrato', 'personas_nucleo', 'indice_activos', 'cursos_inscritos',
   'promedio_pct', 'horas_min', 'horas_max', 'pct_avance', 'cursos_aprobados',
+  'puntaje_prueba_pct', 'preguntas_respondidas', 'respuestas_validas',
+  'puntaje_capitan', 'puntaje_jurado1', 'puntaje_jurado2', 'total', 'puntaje_pct',
 ]);
 // OJO: esta lista dice que campos PODRIAN ser booleanos, no que lo sean. El tipo
 // real se decide mirando el dato (ver esBooleanoDeVerdad), porque la vista devuelve
@@ -67,7 +69,8 @@ const NUMERICOS = new Set([
 // Por eso ya no se confia en la lista: se mira el dato.
 const BOOLEANOS = new Set([
   'tiene_internet', 'aplico_antes_jc', 'fue_beneficiario_antes',
-  'enrutado_fuera_cobertura', 'seleccionado', 'retirado',
+  'enrutado_fuera_cobertura', 'seleccionado', 'retirado', 'prueba_completada',
+  'formulario_completado', 'pasa_fase2',
 ]);
 
 /** true solo si TODOS los valores no nulos son booleanos de verdad. */

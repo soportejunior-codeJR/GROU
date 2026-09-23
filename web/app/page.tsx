@@ -76,6 +76,11 @@ const GROUPS = [
     color: 'blue',
   },
   {
+    name: 'Proceso de selección',
+    fields: ['prueba_completada', 'puntaje_prueba_pct', 'pasa_fase2', 'fase3_asistio', 'puntaje_pct'],
+    color: 'secondary-blue',
+  },
+  {
     name: 'Programa',
     fields: ['datos_curso', 'pct_avance', 'cursos_inscritos', 'cursos_aprobados'],
     color: 'green',

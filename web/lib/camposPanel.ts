@@ -15,6 +15,16 @@ export const CAMPOS_TECNICOS_OCULTOS = new Set([
   'codigo_embajador',
   'metodo_match',
   'duplicado_de',
+  'preguntas_respondidas',
+  'respuestas_validas',
+  'formulario_completado',
+  'puntaje_capitan',
+  'puntaje_jurado1',
+  'puntaje_jurado2',
+  'total',
+  'grupo',
+  'panel',
+  'asistio',
 ]);
 
 export function camposOcultos(ds: Dataset) {
